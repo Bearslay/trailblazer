@@ -99,6 +99,8 @@ int main(int argc, char* args[]) {
     Window.renderText(font, u"hola", {0, 0});
     Window.show();
 
+    int cellSize = 80;
+
     bool running = true;
     while (running) {
         startTicks = SDL_GetTicks();
@@ -157,6 +159,17 @@ int main(int argc, char* args[]) {
             MouseInfo.Motion = false;
         }
         if (!running) {break;}
+
+        // Window.clear();
+        // for (unsigned long int i = 0; i < maze.size(); i++) {
+        //     for (unsigned long int j = 0; j < maze[i].size(); j++) {
+        //         const unsigned char shade = (unsigned char)(maze[i][j] * 255.0);
+        //         Window.fillRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, {shade, shade, shade, 255});
+        //     }
+        // }
+        // Window.fillRectangle(-Window.getW_2() + start.second * cellSize, Window.getH_2() - start.first * cellSize, cellSize, cellSize, PresetColors[COLOR_TEAL]);
+        // Window.fillRectangle(-Window.getW_2() +  goal.second * cellSize, Window.getH_2() -  goal.first * cellSize, cellSize, cellSize, PresetColors[COLOR_MAROON]);
+        // Window.show();
 
         frameTicks = SDL_GetTicks() - startTicks;
         if (frameTicks < 1000 / Window.getRefreshRate()) {
