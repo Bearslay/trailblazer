@@ -31,7 +31,7 @@ std::pair<double, double> randomGradient(int ix, int iy) {
     a ^= b << s | b >> (w - s);
     a *= 2048419325;
     
-    double random = a * (3.14159265 / ~(~0u >> 1));
+    double random = a * (M_PI / ~(~0u >> 1));
     return {std::cos(random), std::sin(random)};
 }
 
