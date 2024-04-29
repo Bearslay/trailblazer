@@ -19,48 +19,57 @@ Uint32 RenderWindow::getWindowFlags() {return SDL_GetWindowFlags(Window);}
 int RenderWindow::getW() const {return W;}
 int RenderWindow::setW(const int &w) {
     const int output = W;
-    W = w;    W_2 = W / 2;
+    W = w;
+    W_2 = W / 2;
     SDL_SetWindowSize(Window, W, H);
     return output;
 }
 int RenderWindow::adjustW(const int &amount) {
     const int output = W;
-    W += amount;    W_2 = W / 2;
+    W += amount;
+    W_2 = W / 2;
     SDL_SetWindowSize(Window, W, H);
     return output;
 }
 int RenderWindow::getH() const {return H;}
 int RenderWindow::setH(const int &h) {
     const int output = H;
-    H = h;    H_2 = H / 2;
+    H = h;
+    H_2 = H / 2;
     SDL_SetWindowSize(Window, W, H);
     return output;
 }
 int RenderWindow::adjustH(const int &amount) {
     const int output = W;
-    H += amount;    H_2 = H / 2;
+    H += amount;
+    H_2 = H / 2;
     SDL_SetWindowSize(Window, W, H);
     return output;
 }
 SDL_Point RenderWindow::getDims() const {return {W, H};}
 SDL_Point RenderWindow::setDims(const int &w, const int &h) {
     const SDL_Point output = {W, H};
-    W = w;    W_2 = W / 2;
-    H = h;    H_2 = H / 2;
+    W = w;
+    W_2 = W / 2;
+    H = h;
+    H_2 = H / 2;
     SDL_SetWindowSize(Window, W, H);
     return output;
 }
 SDL_Point RenderWindow::adjustDims(const int &w, const int &h) {
     const SDL_Point output = {W, H};
-    W += w;    W_2 = W / 2;
-    H += h;    H_2 = H / 2;
+    W += w;
+    W_2 = W / 2;
+    H += h;
+    H_2 = H / 2;
     SDL_SetWindowSize(Window, W, H);
     return output;
 }
 SDL_Point RenderWindow::updateDims() {
     const SDL_Point output = {W, H};
     SDL_GetWindowSize(Window, &W, &H);
-    W_2 = W / 2;    H_2 = H / 2;
+    W_2 = W / 2;
+    H_2 = H / 2;
     return output;
 }
 int RenderWindow::getW_2() const {return W_2;}
