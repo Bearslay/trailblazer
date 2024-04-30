@@ -69,6 +69,11 @@
 /* The value of cos(3pi/8) or sqrt(2-sqrt(2))/2 */
 #define C_MULT_3_8 0.38268343236508977173
 
+/* The value of sqrt(2) */
+#define C_SQRT2    1.41421356237309504880
+/* The value of sqrt(3) */
+#define C_SQRT3    1.73205080756887729353
+
 /* The conversion factor from degrees to radians (pi/180) */
 #define U_PI_180   0.01745329251994329577
 /* The conversion factor from radians to degrees (180/pi) */
