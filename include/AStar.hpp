@@ -1,119 +1,711 @@
 #ifndef ASTAR
 #define ASTAR
 
-#include <utility>
-#include <vector>
 #include <cmath>
-
-#include <iostream>
+#include <vector>
 
 #define CARDINAL_DISTANCE 1
-#define DIAGONAL_DISTANCE 1.41421356
+#define DIAGONAL_DISTANCE 1.41421356237309504880
 
-#define ASTAR_MOVE_CARDINAL 0
-#define ASTAR_MOVE_COMPASS 1
-#define ASTAR_MOVE_ANY 2
+bool isValid(const std::vector<std::vector<double>> &grid, const int &row, const int &col) {return row >= 0 && row < (int)grid.size() && col >= 0 && col < (int)grid.at(row).size();}
+bool isUnblocked(const std::vector<std::vector<double>> &grid, const int &row, const int &col) {return grid.at(row).at(col) < 1.0;}
+bool isGoal(const std::pair<int, int> &dst, const int &row, const int &col) {return row == dst.first && col == dst.second;}
 
-double dHeightMax = 1.0;
-
-unsigned char moveStyle = ASTAR_MOVE_COMPASS;
-
-std::vector<std::vector<double>> Grid = {
-    {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0},
-    {1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0},
-    {1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0},
-    {1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0},
-    {1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0},
-    {1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0},
-    {1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0},
-    {1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0},
-    {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0}
-};
-std::pair<unsigned long int, unsigned long int> start = {1, 1}, goal = {1, 14};
+double calcDist_Cardinal(const std::pair<int, int> &dst, const int &row, const int &col) {return (double)(std::abs(row - dst.first) + std::abs(col - dst.second));}
+double calcDist_Compass(const std::pair<int, int> &dst, const int &row, const int &col) {
+    const double dx = (double)std::abs(row - dst.first);
+    const double dy = (double)std::abs(col - dst.second);
+    return CARDINAL_DISTANCE * (dx + dy) + (DIAGONAL_DISTANCE - 2 * CARDINAL_DISTANCE) * std::min(dx, dy);
+}
+double calcDist_General(const std::pair<int, int> &dst, const int &row, const int &col) {return std::sqrt((row - dst.first) * (row - dst.first) + (col - dst.second) * (col - dst.second));}
 
 struct Cell {
     int parentRow, parentCol;
-
-    double f, g, h;
+    double totalCost, fromCost, toCost;
 };
 
-// Return true if the coordinate is within the grid, false if not
-bool isValid(const int &row, const int &col) {return row >= 0 && row < Grid.size() && col >= 0 && col < Grid[0].size();}
-
-// Return true if the coordinate can be used (is not a wall)
-bool isUnblocked(const int &row, const int &col) {return Grid[row][col] < 1.0;}
-
-// Return true if the coordinate matches the goal's coordinate
-bool isGoal(const int &row, const int &col) {return row == goal.first && col == goal.second;}
-
-double calcHVal(const int &row, const int &col) {
-    switch (moveStyle) {
-        case ASTAR_MOVE_CARDINAL:
-            return (double)std::fabs(row - goal.first) + std::fabs(col - goal.second);
-        case ASTAR_MOVE_COMPASS:
-            return std::sqrt((row - goal.first) * (row - goal.first) + (col - goal.second) * (col - goal.second));
-    }
-
-    const double dx = std::fabs(row - goal.first);
-    const double dy = std::fabs(col - goal.second);
-    return CARDINAL_DISTANCE * (dx + dy) + (DIAGONAL_DISTANCE - 2 * CARDINAL_DISTANCE) * std::min(dx, dy);
-}
-
-void aStar() {
-    if (!isValid(start.first, start.second) || !isValid(goal.first, goal.second)) {
-        std::cout << "[Error] Invalid start or goal\n";
-        return;
-    }
-    if (!isUnblocked(start.first, start.second) || !isUnblocked(goal.first, goal.second)) {
-        std::cout << "[Error] Blocked start or goal\n";
-        return;
-    }
-    if (isGoal(start.first, start.second)) {
-        std::cout << "[Success] Started at goal\n";
-        return;
-    }
+std::vector<std::pair<int, int>> aStar_CardinalGrid(const std::vector<std::vector<double>> &grid, const std::pair<int, int> &src, const std::pair<int, int> &dst) {
+    if (!isValid(grid, src.first, src.second) || !isValid(grid, dst.first, dst.second)) {return {src};}
+    if (!isUnblocked(grid, src.first, src.second) || !isUnblocked(grid, dst.first, dst.second)) {return {src};}
+    if (isGoal(dst, src.first, src.second)) {return {src};}
 
     std::vector<std::vector<bool>> closedList;
     std::vector<std::vector<Cell>> cellDetails;
 
-    for (unsigned long int i = 0; i < Grid.size(); i++) {
+    for (unsigned long int i = 0; i < grid.size(); i++) {
         closedList.emplace_back();
         cellDetails.emplace_back();
-        for (unsigned long int j = 0; j < Grid[i].size(); j++) {
+        for (unsigned long int j = 0; j < grid[i].size(); j++) {
             closedList[i].emplace_back(false);
 
             cellDetails[i].emplace_back();
             cellDetails[i][j].parentRow = -1;
             cellDetails[i][j].parentRow = -1;
-            cellDetails[i][j].f = __FLT_MAX__;
-            cellDetails[i][j].g = __FLT_MAX__;
-            cellDetails[i][j].h = __FLT_MAX__;
+            cellDetails[i][j].totalCost = __FLT_MAX__;
+            cellDetails[i][j].fromCost  = __FLT_MAX__;
+            cellDetails[i][j].toCost    = __FLT_MAX__;
         }
     }
 
-    int row = start.first, col = start.second;
-    cellDetails[row][col].f = cellDetails[row][col].g = cellDetails[row][col].h = 0.0;
+    int row = src.first, col = src.second;
+    cellDetails[row][col].totalCost = cellDetails[row][col].fromCost = cellDetails[row][col].toCost = 0.0;
     cellDetails[row][col].parentRow = row;
     cellDetails[row][col].parentCol = col;
 
-    std::vector<std::pair<double, std::pair<int, int>>> openList = {{0.0, {row, col}}};
-
+    std::vector<std::pair<double, std::pair<int, int>>> openList = {std::make_pair(0.0, std::make_pair(row, col))};
     bool foundGoal = false;
+    double totalCost, fromCost, toCost;
+    std::pair<double, std::pair<int, int>> p;
 
-    while (openList.size() != 0) {
-        std::pair<double, std::pair<int, int>> p = *openList.begin();
+    while (openList.size() > 0) {
+        p = *openList.begin();
         openList.erase(openList.begin());
 
         row = p.second.first;
         col = p.second.second;
         closedList[row][col] = true;
 
+        // North
+        if (isValid(grid, row - 1, col)) {
+            if (isGoal(dst, row - 1, col)) {
+                cellDetails[row - 1][col].parentRow = row;
+                cellDetails[row - 1][col].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row - 1).at(col) && isUnblocked(grid, row - 1, col)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Cardinal(dst, row - 1, col);
+                totalCost = fromCost + toCost;
 
+                if (cellDetails.at(row - 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row - 1, col)));
+
+                    cellDetails[row - 1][col].totalCost = totalCost;
+                    cellDetails[row - 1][col].fromCost  = fromCost;
+                    cellDetails[row - 1][col].toCost    = toCost;
+                    cellDetails[row - 1][col].parentRow = row;
+                    cellDetails[row - 1][col].parentCol = col;
+                }
+            }
+        }
+
+        // South
+        if (isValid(grid, row + 1, col)) {
+            if (isGoal(dst, row + 1, col)) {
+                cellDetails[row + 1][col].parentRow = row;
+                cellDetails[row + 1][col].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row + 1).at(col) && isUnblocked(grid, row + 1, col)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Cardinal(dst, row + 1, col);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row + 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row + 1, col)));
+
+                    cellDetails[row + 1][col].totalCost = totalCost;
+                    cellDetails[row + 1][col].fromCost  = fromCost;
+                    cellDetails[row + 1][col].toCost    = toCost;
+                    cellDetails[row + 1][col].parentRow = row;
+                    cellDetails[row + 1][col].parentCol = col;
+                }
+            }
+        }
+
+        // East
+        if (isValid(grid, row, col + 1)) {
+            if (isGoal(dst, row, col + 1)) {
+                cellDetails[row][col + 1].parentRow = row;
+                cellDetails[row][col + 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row).at(col + 1) && isUnblocked(grid, row, col + 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Cardinal(dst, row, col + 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col + 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row, col + 1)));
+
+                    cellDetails[row][col + 1].totalCost = totalCost;
+                    cellDetails[row][col + 1].fromCost  = fromCost;
+                    cellDetails[row][col + 1].toCost    = toCost;
+                    cellDetails[row][col + 1].parentRow = row;
+                    cellDetails[row][col + 1].parentCol = col;
+                }
+            }
+        }
+
+        // West
+        if (isValid(grid, row, col - 1)) {
+            if (isGoal(dst, row, col - 1)) {
+                cellDetails[row][col - 1].parentRow = row;
+                cellDetails[row][col - 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row).at(col - 1) && isUnblocked(grid, row, col - 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Cardinal(dst, row, col - 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col - 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row, col - 1)));
+
+                    cellDetails[row][col - 1].totalCost = totalCost;
+                    cellDetails[row][col - 1].fromCost  = fromCost;
+                    cellDetails[row][col - 1].toCost    = toCost;
+                    cellDetails[row][col - 1].parentRow = row;
+                    cellDetails[row][col - 1].parentCol = col;
+                }
+            }
+        }
     }
 
-    if (!foundGoal) {std::cout << "[Error] No path to goal\n";}
+    if (!foundGoal) {return {src};}
 
-    return;
+    row = dst.first, col = dst.second;
+    std::vector<std::pair<int, int>> output;
+
+    while (!(cellDetails.at(row).at(col).parentRow == row && cellDetails.at(row).at(col).parentCol == col)) {
+        output.insert(output.begin(), std::make_pair(row, col));
+        const int rowTemp = cellDetails.at(row).at(col).parentRow, colTemp = cellDetails.at(row).at(col).parentCol;
+        row = rowTemp, col = colTemp;
+    }
+    output.insert(output.begin(), std::make_pair(row, col));
+
+    for (unsigned long int i = 0; i < output.size() / 2; i++) {
+        std::pair<int, int> temp = output.at(i);
+        output[i] = output.at(output.size() - 1 - i);
+        output[output.size() - 1 - i] = temp;
+    }
+    return output;
+}
+std::vector<std::pair<int, int>> aStar_CompassGrid(const std::vector<std::vector<double>> &grid, const std::pair<int, int> &src, const std::pair<int, int> &dst) {
+    if (!isValid(grid, src.first, src.second) || !isValid(grid, dst.first, dst.second)) {return {src};}
+    if (!isUnblocked(grid, src.first, src.second) || !isUnblocked(grid, dst.first, dst.second)) {return {src};}
+    if (isGoal(dst, src.first, src.second)) {return {src};}
+
+    std::vector<std::vector<bool>> closedList;
+    std::vector<std::vector<Cell>> cellDetails;
+
+    for (unsigned long int i = 0; i < grid.size(); i++) {
+        closedList.emplace_back();
+        cellDetails.emplace_back();
+        for (unsigned long int j = 0; j < grid[i].size(); j++) {
+            closedList[i].emplace_back(false);
+
+            cellDetails[i].emplace_back();
+            cellDetails[i][j].parentRow = -1;
+            cellDetails[i][j].parentRow = -1;
+            cellDetails[i][j].totalCost = __FLT_MAX__;
+            cellDetails[i][j].fromCost  = __FLT_MAX__;
+            cellDetails[i][j].toCost    = __FLT_MAX__;
+        }
+    }
+
+    int row = src.first, col = src.second;
+    cellDetails[row][col].totalCost = cellDetails[row][col].fromCost = cellDetails[row][col].toCost = 0.0;
+    cellDetails[row][col].parentRow = row;
+    cellDetails[row][col].parentCol = col;
+
+    std::vector<std::pair<double, std::pair<int, int>>> openList = {std::make_pair(0.0, std::make_pair(row, col))};
+    bool foundGoal = false;
+    double totalCost, fromCost, toCost;
+    std::pair<double, std::pair<int, int>> p;
+
+    while (openList.size() > 0) {
+        p = *openList.begin();
+        openList.erase(openList.begin());
+
+        row = p.second.first;
+        col = p.second.second;
+        closedList[row][col] = true;
+
+        // North
+        if (isValid(grid, row - 1, col)) {
+            if (isGoal(dst, row - 1, col)) {
+                cellDetails[row - 1][col].parentRow = row;
+                cellDetails[row - 1][col].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row - 1).at(col) && isUnblocked(grid, row - 1, col)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row - 1, col);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row - 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row - 1, col)));
+
+                    cellDetails[row - 1][col].totalCost = totalCost;
+                    cellDetails[row - 1][col].fromCost  = fromCost;
+                    cellDetails[row - 1][col].toCost    = toCost;
+                    cellDetails[row - 1][col].parentRow = row;
+                    cellDetails[row - 1][col].parentCol = col;
+                }
+            }
+        }
+
+        // South
+        if (isValid(grid, row + 1, col)) {
+            if (isGoal(dst, row + 1, col)) {
+                cellDetails[row + 1][col].parentRow = row;
+                cellDetails[row + 1][col].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row + 1).at(col) && isUnblocked(grid, row + 1, col)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row + 1, col);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row + 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row + 1, col)));
+
+                    cellDetails[row + 1][col].totalCost = totalCost;
+                    cellDetails[row + 1][col].fromCost  = fromCost;
+                    cellDetails[row + 1][col].toCost    = toCost;
+                    cellDetails[row + 1][col].parentRow = row;
+                    cellDetails[row + 1][col].parentCol = col;
+                }
+            }
+        }
+
+        // East
+        if (isValid(grid, row, col + 1)) {
+            if (isGoal(dst, row, col + 1)) {
+                cellDetails[row][col + 1].parentRow = row;
+                cellDetails[row][col + 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row).at(col + 1) && isUnblocked(grid, row, col + 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row, col + 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col + 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row, col + 1)));
+
+                    cellDetails[row][col + 1].totalCost = totalCost;
+                    cellDetails[row][col + 1].fromCost  = fromCost;
+                    cellDetails[row][col + 1].toCost    = toCost;
+                    cellDetails[row][col + 1].parentRow = row;
+                    cellDetails[row][col + 1].parentCol = col;
+                }
+            }
+        }
+
+        // West
+        if (isValid(grid, row, col - 1)) {
+            if (isGoal(dst, row, col - 1)) {
+                cellDetails[row][col - 1].parentRow = row;
+                cellDetails[row][col - 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row).at(col - 1) && isUnblocked(grid, row, col - 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row, col - 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col - 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row, col - 1)));
+
+                    cellDetails[row][col - 1].totalCost = totalCost;
+                    cellDetails[row][col - 1].fromCost  = fromCost;
+                    cellDetails[row][col - 1].toCost    = toCost;
+                    cellDetails[row][col - 1].parentRow = row;
+                    cellDetails[row][col - 1].parentCol = col;
+                }
+            }
+        }
+
+        // North-East
+        if (isValid(grid, row - 1, col + 1)) {
+            if (isGoal(dst, row - 1, col + 1)) {
+                cellDetails[row - 1][col + 1].parentRow = row;
+                cellDetails[row - 1][col + 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row - 1).at(col + 1) && isUnblocked(grid, row - 1, col + 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row - 1, col + 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row - 1).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col + 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row - 1, col + 1)));
+
+                    cellDetails[row - 1][col + 1].totalCost = totalCost;
+                    cellDetails[row - 1][col + 1].fromCost  = fromCost;
+                    cellDetails[row - 1][col + 1].toCost    = toCost;
+                    cellDetails[row - 1][col + 1].parentRow = row;
+                    cellDetails[row - 1][col + 1].parentCol = col;
+                }
+            }
+        }
+
+        // South-East
+        if (isValid(grid, row + 1, col + 1)) {
+            if (isGoal(dst, row + 1, col + 1)) {
+                cellDetails[row + 1][col + 1].parentRow = row;
+                cellDetails[row + 1][col + 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row + 1).at(col + 1) && isUnblocked(grid, row + 1, col + 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row + 1, col + 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row + 1).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col + 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row + 1, col + 1)));
+
+                    cellDetails[row + 1][col + 1].totalCost = totalCost;
+                    cellDetails[row + 1][col + 1].fromCost  = fromCost;
+                    cellDetails[row + 1][col + 1].toCost    = toCost;
+                    cellDetails[row + 1][col + 1].parentRow = row;
+                    cellDetails[row + 1][col + 1].parentCol = col;
+                }
+            }
+        }
+
+        // North-West
+        if (isValid(grid, row - 1, col - 1)) {
+            if (isGoal(dst, row - 1, col - 1)) {
+                cellDetails[row - 1][col - 1].parentRow = row;
+                cellDetails[row - 1][col - 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row - 1).at(col - 1) && isUnblocked(grid, row - 1, col - 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row - 1, col - 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row - 1).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col - 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row - 1, col - 1)));
+
+                    cellDetails[row - 1][col - 1].totalCost = totalCost;
+                    cellDetails[row - 1][col - 1].fromCost  = fromCost;
+                    cellDetails[row - 1][col - 1].toCost    = toCost;
+                    cellDetails[row - 1][col - 1].parentRow = row;
+                    cellDetails[row - 1][col - 1].parentCol = col;
+                }
+            }
+        }
+
+        // South-West
+        if (isValid(grid, row + 1, col - 1)) {
+            if (isGoal(dst, row + 1, col - 1)) {
+                cellDetails[row + 1][col - 1].parentRow = row;
+                cellDetails[row + 1][col - 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row + 1).at(col - 1) && isUnblocked(grid, row + 1, col - 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_Compass(dst, row + 1, col - 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row + 1).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col - 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row + 1, col - 1)));
+
+                    cellDetails[row + 1][col - 1].totalCost = totalCost;
+                    cellDetails[row + 1][col - 1].fromCost  = fromCost;
+                    cellDetails[row + 1][col - 1].toCost    = toCost;
+                    cellDetails[row + 1][col - 1].parentRow = row;
+                    cellDetails[row + 1][col - 1].parentCol = col;
+                }
+            }
+        }
+    }
+
+    if (!foundGoal) {return {src};}
+
+    row = dst.first, col = dst.second;
+    std::vector<std::pair<int, int>> output;
+
+    while (!(cellDetails.at(row).at(col).parentRow == row && cellDetails.at(row).at(col).parentCol == col)) {
+        output.insert(output.begin(), std::make_pair(row, col));
+        const int rowTemp = cellDetails.at(row).at(col).parentRow, colTemp = cellDetails.at(row).at(col).parentCol;
+        row = rowTemp, col = colTemp;
+    }
+    output.insert(output.begin(), std::make_pair(row, col));
+
+    for (unsigned long int i = 0; i < output.size() / 2; i++) {
+        std::pair<int, int> temp = output.at(i);
+        output[i] = output.at(output.size() - 1 - i);
+        output[output.size() - 1 - i] = temp;
+    }
+    return output;
+}
+std::vector<std::pair<int, int>> aStar_GeneralGrid(const std::vector<std::vector<double>> &grid, const std::pair<int, int> &src, const std::pair<int, int> &dst) {
+    if (!isValid(grid, src.first, src.second) || !isValid(grid, dst.first, dst.second)) {return {src};}
+    if (!isUnblocked(grid, src.first, src.second) || !isUnblocked(grid, dst.first, dst.second)) {return {src};}
+    if (isGoal(dst, src.first, src.second)) {return {src};}
+
+    std::vector<std::vector<bool>> closedList;
+    std::vector<std::vector<Cell>> cellDetails;
+
+    for (unsigned long int i = 0; i < grid.size(); i++) {
+        closedList.emplace_back();
+        cellDetails.emplace_back();
+        for (unsigned long int j = 0; j < grid[i].size(); j++) {
+            closedList[i].emplace_back(false);
+
+            cellDetails[i].emplace_back();
+            cellDetails[i][j].parentRow = -1;
+            cellDetails[i][j].parentRow = -1;
+            cellDetails[i][j].totalCost = __FLT_MAX__;
+            cellDetails[i][j].fromCost  = __FLT_MAX__;
+            cellDetails[i][j].toCost    = __FLT_MAX__;
+        }
+    }
+
+    int row = src.first, col = src.second;
+    cellDetails[row][col].totalCost = cellDetails[row][col].fromCost = cellDetails[row][col].toCost = 0.0;
+    cellDetails[row][col].parentRow = row;
+    cellDetails[row][col].parentCol = col;
+
+    std::vector<std::pair<double, std::pair<int, int>>> openList = {std::make_pair(0.0, std::make_pair(row, col))};
+    bool foundGoal = false;
+    double totalCost, fromCost, toCost;
+    std::pair<double, std::pair<int, int>> p;
+
+    while (openList.size() > 0) {
+        p = *openList.begin();
+        openList.erase(openList.begin());
+
+        row = p.second.first;
+        col = p.second.second;
+        closedList[row][col] = true;
+
+        // North
+        if (isValid(grid, row - 1, col)) {
+            if (isGoal(dst, row - 1, col)) {
+                cellDetails[row - 1][col].parentRow = row;
+                cellDetails[row - 1][col].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row - 1).at(col) && isUnblocked(grid, row - 1, col)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_General(dst, row - 1, col);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row - 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row - 1, col)));
+
+                    cellDetails[row - 1][col].totalCost = totalCost;
+                    cellDetails[row - 1][col].fromCost  = fromCost;
+                    cellDetails[row - 1][col].toCost    = toCost;
+                    cellDetails[row - 1][col].parentRow = row;
+                    cellDetails[row - 1][col].parentCol = col;
+                }
+            }
+        }
+
+        // South
+        if (isValid(grid, row + 1, col)) {
+            if (isGoal(dst, row + 1, col)) {
+                cellDetails[row + 1][col].parentRow = row;
+                cellDetails[row + 1][col].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row + 1).at(col) && isUnblocked(grid, row + 1, col)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_General(dst, row + 1, col);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row + 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row + 1, col)));
+
+                    cellDetails[row + 1][col].totalCost = totalCost;
+                    cellDetails[row + 1][col].fromCost  = fromCost;
+                    cellDetails[row + 1][col].toCost    = toCost;
+                    cellDetails[row + 1][col].parentRow = row;
+                    cellDetails[row + 1][col].parentCol = col;
+                }
+            }
+        }
+
+        // East
+        if (isValid(grid, row, col + 1)) {
+            if (isGoal(dst, row, col + 1)) {
+                cellDetails[row][col + 1].parentRow = row;
+                cellDetails[row][col + 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row).at(col + 1) && isUnblocked(grid, row, col + 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_General(dst, row, col + 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col + 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row, col + 1)));
+
+                    cellDetails[row][col + 1].totalCost = totalCost;
+                    cellDetails[row][col + 1].fromCost  = fromCost;
+                    cellDetails[row][col + 1].toCost    = toCost;
+                    cellDetails[row][col + 1].parentRow = row;
+                    cellDetails[row][col + 1].parentCol = col;
+                }
+            }
+        }
+
+        // West
+        if (isValid(grid, row, col - 1)) {
+            if (isGoal(dst, row, col - 1)) {
+                cellDetails[row][col - 1].parentRow = row;
+                cellDetails[row][col - 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row).at(col - 1) && isUnblocked(grid, row, col - 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE;
+                toCost = calcDist_General(dst, row, col - 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col - 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row, col - 1)));
+
+                    cellDetails[row][col - 1].totalCost = totalCost;
+                    cellDetails[row][col - 1].fromCost  = fromCost;
+                    cellDetails[row][col - 1].toCost    = toCost;
+                    cellDetails[row][col - 1].parentRow = row;
+                    cellDetails[row][col - 1].parentCol = col;
+                }
+            }
+        }
+
+        // North-East
+        if (isValid(grid, row - 1, col + 1)) {
+            if (isGoal(dst, row - 1, col + 1)) {
+                cellDetails[row - 1][col + 1].parentRow = row;
+                cellDetails[row - 1][col + 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row - 1).at(col + 1) && isUnblocked(grid, row - 1, col + 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_General(dst, row - 1, col + 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row - 1).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col + 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row - 1, col + 1)));
+
+                    cellDetails[row - 1][col + 1].totalCost = totalCost;
+                    cellDetails[row - 1][col + 1].fromCost  = fromCost;
+                    cellDetails[row - 1][col + 1].toCost    = toCost;
+                    cellDetails[row - 1][col + 1].parentRow = row;
+                    cellDetails[row - 1][col + 1].parentCol = col;
+                }
+            }
+        }
+
+        // South-East
+        if (isValid(grid, row + 1, col + 1)) {
+            if (isGoal(dst, row + 1, col + 1)) {
+                cellDetails[row + 1][col + 1].parentRow = row;
+                cellDetails[row + 1][col + 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row + 1).at(col + 1) && isUnblocked(grid, row + 1, col + 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_General(dst, row + 1, col + 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row + 1).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col + 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row + 1, col + 1)));
+
+                    cellDetails[row + 1][col + 1].totalCost = totalCost;
+                    cellDetails[row + 1][col + 1].fromCost  = fromCost;
+                    cellDetails[row + 1][col + 1].toCost    = toCost;
+                    cellDetails[row + 1][col + 1].parentRow = row;
+                    cellDetails[row + 1][col + 1].parentCol = col;
+                }
+            }
+        }
+
+        // North-West
+        if (isValid(grid, row - 1, col - 1)) {
+            if (isGoal(dst, row - 1, col - 1)) {
+                cellDetails[row - 1][col - 1].parentRow = row;
+                cellDetails[row - 1][col - 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row - 1).at(col - 1) && isUnblocked(grid, row - 1, col - 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_General(dst, row - 1, col - 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row - 1).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col - 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row - 1, col - 1)));
+
+                    cellDetails[row - 1][col - 1].totalCost = totalCost;
+                    cellDetails[row - 1][col - 1].fromCost  = fromCost;
+                    cellDetails[row - 1][col - 1].toCost    = toCost;
+                    cellDetails[row - 1][col - 1].parentRow = row;
+                    cellDetails[row - 1][col - 1].parentCol = col;
+                }
+            }
+        }
+
+        // South-West
+        if (isValid(grid, row + 1, col - 1)) {
+            if (isGoal(dst, row + 1, col - 1)) {
+                cellDetails[row + 1][col - 1].parentRow = row;
+                cellDetails[row + 1][col - 1].parentCol = col;
+                
+                foundGoal = true;
+                break;
+            } else if (!closedList.at(row + 1).at(col - 1) && isUnblocked(grid, row + 1, col - 1)) {
+                fromCost = cellDetails.at(row).at(col).fromCost + DIAGONAL_DISTANCE;
+                toCost = calcDist_General(dst, row + 1, col - 1);
+                totalCost = fromCost + toCost;
+
+                if (cellDetails.at(row + 1).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col - 1).totalCost > totalCost) {
+                    openList.emplace_back(std::make_pair(totalCost, std::make_pair(row + 1, col - 1)));
+
+                    cellDetails[row + 1][col - 1].totalCost = totalCost;
+                    cellDetails[row + 1][col - 1].fromCost  = fromCost;
+                    cellDetails[row + 1][col - 1].toCost    = toCost;
+                    cellDetails[row + 1][col - 1].parentRow = row;
+                    cellDetails[row + 1][col - 1].parentCol = col;
+                }
+            }
+        }
+    }
+
+    if (!foundGoal) {return {src};}
+
+    row = dst.first, col = dst.second;
+    std::vector<std::pair<int, int>> output;
+
+    while (!(cellDetails.at(row).at(col).parentRow == row && cellDetails.at(row).at(col).parentCol == col)) {
+        output.insert(output.begin(), std::make_pair(row, col));
+        const int rowTemp = cellDetails.at(row).at(col).parentRow, colTemp = cellDetails.at(row).at(col).parentCol;
+        row = rowTemp, col = colTemp;
+    }
+    output.insert(output.begin(), std::make_pair(row, col));
+
+    for (unsigned long int i = 0; i < output.size() / 2; i++) {
+        std::pair<int, int> temp = output.at(i);
+        output[i] = output.at(output.size() - 1 - i);
+        output[output.size() - 1 - i] = temp;
+    }
+    return output;
 }
 
 #endif /* ASTAR */
