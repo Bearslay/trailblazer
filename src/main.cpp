@@ -10,8 +10,8 @@
 #include "Perlin.hpp"
 #include "AStar.hpp"
 
-std::vector<std::vector<Uint8>> getNoise(int w, int h, int o = 8, double bias = 2.0, double scale = 350.0) {
-    std::vector<std::vector<Uint8>> output;
+std::vector<std::vector<double>> getNoise(int w, int h, int o = 8, double bias = 2.0, double scale = 350.0) {
+    std::vector<std::vector<double>> output;
 
     for (int i = 0; i < h; i++) {
         output.emplace_back();
@@ -28,7 +28,7 @@ std::vector<std::vector<Uint8>> getNoise(int w, int h, int o = 8, double bias = 
             if (val > 1.0) {val = 1.0;}
             else if (val < -1.0) {val = -1.0;}
 
-            output[i].emplace_back((Uint8)((val * 0.5 + 0.5) * 255));
+            output[i].emplace_back(val * 0.5 + 0.5);
         }
     }
 
@@ -82,8 +82,17 @@ int main(int argc, char* args[]) {
         int Quit = SDL_SCANCODE_ESCAPE;
         int ToggleCapture = SDL_SCANCODE_F1;
         int AStar_Cardinal = SDL_SCANCODE_1;
-        int AStar_Compass = SDL_SCANCODE_2;
-        int AStar_General = SDL_SCANCODE_3;
+        int AStar_Compass_Free = SDL_SCANCODE_2;
+        int AStar_General_Free = SDL_SCANCODE_3;
+        int AStar_Compass_NoPhase = SDL_SCANCODE_4;
+        int AStar_General_NoPhase = SDL_SCANCODE_5;
+        int AStar_Compass_NoTouch = SDL_SCANCODE_6;
+        int AStar_General_NoTouch = SDL_SCANCODE_7;
+        int PlaceStart = SDL_SCANCODE_Z;
+        int PlaceGoal = SDL_SCANCODE_X;
+        int ClearMaze = SDL_SCANCODE_C;
+        int HardBrush = SDL_SCANCODE_F;
+        int HardErase = SDL_SCANCODE_G;
     } Keybinds;
 
     long double t = 0.0;
@@ -95,7 +104,7 @@ int main(int argc, char* args[]) {
     long double frameTime = 0.0;
     double accumulator = 0.0;
 
-    // std::vector<std::vector<Uint8>> Noise = getNoise(Window.getW(), Window.getH());
+    // std::vector<std::vector<double>> Noise = getNoise(Window.getW(), Window.getH());
 
     // Window.clear();
     // for (unsigned long int i = 0; i < Noise.size(); i++) {
@@ -106,7 +115,9 @@ int main(int argc, char* args[]) {
     // Window.renderText(font, u"hola", {0, 0});
     // Window.show();
 
-    int cellSize = 16;
+    SDL_Point mousePosMaze = {0, 0}, prevMousePosMaze = mousePosMaze;
+    int cellSize = 80;
+    double strokeStrength = 0.1;
     std::vector<std::vector<double>> grid;
     std::pair<unsigned long int, unsigned long int> start = std::make_pair(0, 0), goal = std::make_pair(Window.getH() / cellSize - 1, Window.getW() / cellSize - 1);
     std::vector<std::pair<int, int>> pathNodes;
@@ -116,6 +127,12 @@ int main(int argc, char* args[]) {
         grid.emplace_back();
         for (int j = 0; j < Window.getW() / cellSize; j++) {
             grid[i].emplace_back(0.0);
+        }
+    }
+
+    for (unsigned long int i = 1; i < grid.size() - 1; i++) {
+        for (unsigned long int j = 1; j < grid[i].size() - 1; j++) {
+            grid[i][j] = 1.0;
         }
     }
 
@@ -146,32 +163,76 @@ int main(int argc, char* args[]) {
                             MouseInfo.Released = false;
                             MouseInfo.Rel = {0, 0};
                         }
+
+                        mousePosMaze = {MouseInfo.PosR.x / cellSize, MouseInfo.PosR.y / cellSize};
                         break;
                     case SDL_KEYDOWN:
-                        if (Keystate[Keybinds.ToggleCapture]) {
-                            MouseInfo.Captured = !MouseInfo.Captured;
-                            if (MouseInfo.Captured) {
-                                SDL_SetRelativeMouseMode(SDL_TRUE);
-                                MouseInfo.Released = true;
-                                MouseInfo.Rel = {0, 0};
-                            } else {
-                                SDL_SetRelativeMouseMode(SDL_FALSE);
-                                Window.centerMouse();
-                                MouseInfo.PosC = {0, 0};
-                                MouseInfo.PosR = {0, 0};
+                        if (!Event.key.repeat) {
+                            if (Keystate[Keybinds.ToggleCapture]) {
+                                MouseInfo.Captured = !MouseInfo.Captured;
+                                if (MouseInfo.Captured) {
+                                    SDL_SetRelativeMouseMode(SDL_TRUE);
+                                    MouseInfo.Released = true;
+                                    MouseInfo.Rel = {0, 0};
+                                } else {
+                                    SDL_SetRelativeMouseMode(SDL_FALSE);
+                                    Window.centerMouse();
+                                    MouseInfo.PosC = {0, 0};
+                                    MouseInfo.PosR = {0, 0};
+                                }
                             }
-                        }
-                        if (Keystate[Keybinds.AStar_Cardinal]) {
-                            madeChanges = true;
-                            pathNodes = aStar_CardinalGrid(grid, start, goal);
-                        }
-                        if (Keystate[Keybinds.AStar_Compass]) {
-                            madeChanges = true;
-                            pathNodes = aStar_CompassGrid(grid, start, goal);
-                        }
-                        if (Keystate[Keybinds.AStar_General]) {
-                            madeChanges = true;
-                            pathNodes = aStar_GeneralGrid(grid, start, goal);
+                            if (Keystate[Keybinds.AStar_Cardinal]) {
+                                madeChanges = true;
+                                pathNodes = aStar_CardinalHeightGrid(grid, start, goal);
+                            }
+                            if (Keystate[Keybinds.AStar_Compass_Free]) {
+                                madeChanges = true;
+                                pathNodes = aStar_CompassGrid_Free(grid, start, goal);
+                            }
+                            if (Keystate[Keybinds.AStar_General_Free]) {
+                                madeChanges = true;
+                                pathNodes = aStar_GeneralGrid_Free(grid, start, goal);
+                            }
+                            if (Keystate[Keybinds.AStar_Compass_NoPhase]) {
+                                madeChanges = true;
+                                pathNodes = aStar_CompassGrid_NoPhase(grid, start, goal);
+                            }
+                            if (Keystate[Keybinds.AStar_General_NoPhase]) {
+                                madeChanges = true;
+                                pathNodes = aStar_GeneralGrid_NoPhase(grid, start, goal);
+                            }
+                            if (Keystate[Keybinds.AStar_Compass_NoTouch]) {
+                                madeChanges = true;
+                                pathNodes = aStar_CompassGrid_NoTouch(grid, start, goal);
+                            }
+                            if (Keystate[Keybinds.AStar_General_NoTouch]) {
+                                madeChanges = true;
+                                pathNodes = aStar_GeneralGrid_NoTouch(grid, start, goal);
+                            }
+                            if (Keystate[Keybinds.ClearMaze]) {
+                                for (unsigned long int i = 0; i < grid.size(); i++) {
+                                    for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
+                                        grid[i][j] = 0.0;
+                                    }
+                                }
+                                madeChanges = true;
+                            }
+                            if (Keystate[Keybinds.PlaceStart]) {
+                                start = std::make_pair(MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize);
+                                madeChanges = true;
+                            }
+                            if (Keystate[Keybinds.PlaceGoal]) {
+                                goal = std::make_pair(MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize);
+                                madeChanges = true;
+                            }
+                            if (Keystate[Keybinds.HardBrush]) {
+                                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;
+                                madeChanges = true;
+                            }
+                            if (Keystate[Keybinds.HardErase]) {
+                                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 0.0;
+                                madeChanges = true;
+                            }
                         }
                         break;
                     case SDL_WINDOWEVENT:
@@ -180,20 +241,14 @@ int main(int argc, char* args[]) {
                     case SDL_MOUSEBUTTONDOWN:
                         MouseInfo.Pressed[Event.button.button] = true;
                         switch (Event.button.button) {
-                            case SDL_BUTTON_MIDDLE:
-                                for (unsigned long int i = 0; i < grid.size(); i++) {
-                                    for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
-                                        grid[i][j] = 0.0;
-                                    }
-                                }
+                            case SDL_BUTTON_LEFT:
+                                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] += strokeStrength;
+                                if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] > 1.0) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;}
                                 madeChanges = true;
                                 break;
-                            case SDL_BUTTON_X1:
-                                start = std::make_pair(MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize);
-                                madeChanges = true;
-                                break;
-                            case SDL_BUTTON_X2:
-                                goal = std::make_pair(MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize);
+                            case SDL_BUTTON_RIGHT:
+                                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] -= strokeStrength;
+                                if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] < 0.0) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 0.0;}
                                 madeChanges = true;
                                 break;
                         }
@@ -209,12 +264,26 @@ int main(int argc, char* args[]) {
                 break;
             }
 
-            if (MouseInfo.Pressed[SDL_BUTTON_LEFT]) {
-                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;
-                madeChanges = true;
-            } else if (MouseInfo.Pressed[SDL_BUTTON_RIGHT]) {
-                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 0.0;
-                madeChanges = true;
+            if ((mousePosMaze.x != prevMousePosMaze.x) || (mousePosMaze.y != prevMousePosMaze.y)) {
+                prevMousePosMaze = mousePosMaze;
+
+                if (MouseInfo.Pressed[SDL_BUTTON_LEFT]) {
+                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] += strokeStrength;
+                    if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] > 1.0) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;}
+                    madeChanges = true;
+                } else if (MouseInfo.Pressed[SDL_BUTTON_RIGHT]) {
+                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] -= strokeStrength;
+                    if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] < 0.0) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 0.0;}
+                    madeChanges = true;
+                }
+                if (Keystate[Keybinds.HardBrush]) {
+                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;
+                    madeChanges = true;
+                }
+                if (Keystate[Keybinds.HardErase]) {
+                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 0.0;
+                    madeChanges = true;
+                }
             }
 
             t += dt;
@@ -231,9 +300,7 @@ int main(int argc, char* args[]) {
                 for (unsigned long int j = 0; j < grid[i].size(); j++) {
                     const unsigned char shade = 255 - (unsigned char)(grid[i][j] * 255.0);
                     Window.fillRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, {shade, shade, shade, 255});
-                    if (grid[i][j] <= 0.0) {
-                        Window.drawRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, PresetColors[COLOR_LIGHT_GRAY]);
-                    }
+                    Window.drawRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, PresetColors[COLOR_LIGHT_GRAY]);
                 }
             }
             Window.fillRectangle(-Window.getW_2() + start.second * cellSize, Window.getH_2() - start.first * cellSize, cellSize, cellSize, PresetColors[COLOR_TEAL]);
