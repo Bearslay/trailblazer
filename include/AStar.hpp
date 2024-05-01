@@ -7,14 +7,13 @@
 #define CARDINAL_DISTANCE 1
 #define DIAGONAL_DISTANCE 1.41421356237309504880
 
-#define MAX_UP 0.25
-#define MAX_DOWN 0.35
-#define CLIMBFACTOR 2.5
+#define MAX_UP 2
+#define MAX_DOWN 3
 
 bool isValid(const std::vector<std::vector<double>> &grid, const int &row, const int &col) {return row >= 0 && row < (int)grid.size() && col >= 0 && col < (int)grid.at(row).size();}
 bool isGoal(const std::pair<int, int> &dst, const int &row, const int &col) {return row == dst.first && col == dst.second;}
 
-bool isUnblocked(const std::vector<std::vector<double>> &grid, const int &row, const int &col) {return grid.at(row).at(col) < 1.0;}
+bool isUnblocked(const std::vector<std::vector<double>> &grid, const int &row, const int &col) {return grid.at(row).at(col) < 5.0;}
 double calcDist_Cardinal(const std::pair<int, int> &dst, const int &row, const int &col) {return (double)(std::abs(row - dst.first) + std::abs(col - dst.second));}
 double calcDist_Compass(const std::pair<int, int> &dst, const int &row, const int &col) {
     const double dx = (double)std::abs(row - dst.first);
@@ -24,13 +23,13 @@ double calcDist_Compass(const std::pair<int, int> &dst, const int &row, const in
 double calcDist_General(const std::pair<int, int> &dst, const int &row, const int &col) {return std::sqrt((row - dst.first) * (row - dst.first) + (col - dst.second) * (col - dst.second));}
 
 bool isUnblocked_Height(const std::vector<std::vector<double>> &grid, const int &row, const int &col, const double &height) {return grid.at(row).at(col) < height ? height - grid.at(row).at(col) <= MAX_DOWN : grid.at(row).at(col) - height <= MAX_UP;}
-double calcDist_Cardinal_Height(const std::pair<int, int> &dst, const double &dstHeight, const int &row, const int &col, const double &height) {return (double)(std::abs(row - dst.first) + std::abs(col - dst.second)) + std::fabs(height - dstHeight) * CLIMBFACTOR;}
+double calcDist_Cardinal_Height(const std::pair<int, int> &dst, const double &dstHeight, const int &row, const int &col, const double &height) {return (double)(std::abs(row - dst.first) + std::abs(col - dst.second)) + std::fabs(height - dstHeight);}
 double calcDist_Compass_Height(const std::pair<int, int> &dst, const double &dstHeight, const int &row, const int &col, const double &height) {
     const double dx = (double)std::abs(row - dst.first);
     const double dy = (double)std::abs(col - dst.second);
-    return CARDINAL_DISTANCE * (dx + dy) + (DIAGONAL_DISTANCE - 2 * CARDINAL_DISTANCE) * std::min(dx, dy) + std::fabs(height - dstHeight) * CLIMBFACTOR;
+    return CARDINAL_DISTANCE * (dx + dy) + (DIAGONAL_DISTANCE - 2 * CARDINAL_DISTANCE) * std::min(dx, dy) + std::fabs(height - dstHeight);
 }
-double calcDist_General_Height(const std::pair<int, int> &dst, const double &dstHeight, const int &row, const int &col, const double &height) {return std::sqrt((row - dst.first) * (row - dst.first) + (col - dst.second) * (col - dst.second) + (height - dstHeight) * (height - dstHeight) * CLIMBFACTOR);}
+double calcDist_General_Height(const std::pair<int, int> &dst, const double &dstHeight, const int &row, const int &col, const double &height) {return std::sqrt((row - dst.first) * (row - dst.first) + (col - dst.second) * (col - dst.second) + (height - dstHeight) * (height - dstHeight));}
 
 struct Cell {
     int parentRow, parentCol;
@@ -1817,8 +1816,8 @@ std::vector<std::pair<int, int>> aStar_CardinalHeightGrid(const std::vector<std:
                 foundGoal = true;
                 break;
             } else if (!closedList.at(row - 1).at(col) && isUnblocked_Height(grid, row - 1, col, grid.at(row).at(col))) {
-                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row - 1).at(col)) * CLIMBFACTOR;
-                toCost = calcDist_Cardinal_Height(dst, dstHeight, row - 1, col, grid.at(row).at(col));
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row - 1).at(col));
+                toCost = calcDist_General_Height(dst, dstHeight, row - 1, col, grid.at(row).at(col));
                 totalCost = fromCost + toCost;
 
                 if (cellDetails.at(row - 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row - 1).at(col).totalCost > totalCost) {
@@ -1842,8 +1841,8 @@ std::vector<std::pair<int, int>> aStar_CardinalHeightGrid(const std::vector<std:
                 foundGoal = true;
                 break;
             } else if (!closedList.at(row + 1).at(col) && isUnblocked_Height(grid, row + 1, col, grid.at(row).at(col))) {
-                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row + 1).at(col)) * CLIMBFACTOR;
-                toCost = calcDist_Cardinal_Height(dst, dstHeight, row + 1, col, grid.at(row).at(col));
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row + 1).at(col));
+                toCost = calcDist_General_Height(dst, dstHeight, row + 1, col, grid.at(row).at(col));
                 totalCost = fromCost + toCost;
 
                 if (cellDetails.at(row + 1).at(col).totalCost == __FLT_MAX__ || cellDetails.at(row + 1).at(col).totalCost > totalCost) {
@@ -1867,8 +1866,8 @@ std::vector<std::pair<int, int>> aStar_CardinalHeightGrid(const std::vector<std:
                 foundGoal = true;
                 break;
             } else if (!closedList.at(row).at(col + 1) && isUnblocked_Height(grid, row, col + 1, grid.at(row).at(col))) {
-                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row).at(col + 1)) * CLIMBFACTOR;
-                toCost = calcDist_Cardinal_Height(dst, dstHeight, row, col + 1, grid.at(row).at(col));
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row).at(col + 1));
+                toCost = calcDist_General_Height(dst, dstHeight, row, col + 1, grid.at(row).at(col));
                 totalCost = fromCost + toCost;
 
                 if (cellDetails.at(row).at(col + 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col + 1).totalCost > totalCost) {
@@ -1892,8 +1891,8 @@ std::vector<std::pair<int, int>> aStar_CardinalHeightGrid(const std::vector<std:
                 foundGoal = true;
                 break;
             } else if (!closedList.at(row).at(col - 1) && isUnblocked_Height(grid, row, col - 1, grid.at(row).at(col))) {
-                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row).at(col - 1)) * CLIMBFACTOR;
-                toCost = calcDist_Cardinal_Height(dst, dstHeight, row, col - 1, grid.at(row).at(col));
+                fromCost = cellDetails.at(row).at(col).fromCost + CARDINAL_DISTANCE + std::fabs(grid.at(row).at(col) - grid.at(row).at(col - 1));
+                toCost = calcDist_General_Height(dst, dstHeight, row, col - 1, grid.at(row).at(col));
                 totalCost = fromCost + toCost;
 
                 if (cellDetails.at(row).at(col - 1).totalCost == __FLT_MAX__ || cellDetails.at(row).at(col - 1).totalCost > totalCost) {

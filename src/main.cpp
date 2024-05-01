@@ -117,7 +117,8 @@ int main(int argc, char* args[]) {
 
     SDL_Point mousePosMaze = {0, 0}, prevMousePosMaze = mousePosMaze;
     int cellSize = 80;
-    double strokeStrength = 0.1;
+    double strokeStrength = 1.0;
+    double strokeMax = 5.0;
     std::vector<std::vector<double>> grid;
     std::pair<unsigned long int, unsigned long int> start = std::make_pair(0, 0), goal = std::make_pair(Window.getH() / cellSize - 1, Window.getW() / cellSize - 1);
     std::vector<std::pair<int, int>> pathNodes;
@@ -127,12 +128,6 @@ int main(int argc, char* args[]) {
         grid.emplace_back();
         for (int j = 0; j < Window.getW() / cellSize; j++) {
             grid[i].emplace_back(0.0);
-        }
-    }
-
-    for (unsigned long int i = 1; i < grid.size() - 1; i++) {
-        for (unsigned long int j = 1; j < grid[i].size() - 1; j++) {
-            grid[i][j] = 1.0;
         }
     }
 
@@ -226,7 +221,7 @@ int main(int argc, char* args[]) {
                                 madeChanges = true;
                             }
                             if (Keystate[Keybinds.HardBrush]) {
-                                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;
+                                grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = strokeMax;
                                 madeChanges = true;
                             }
                             if (Keystate[Keybinds.HardErase]) {
@@ -243,7 +238,7 @@ int main(int argc, char* args[]) {
                         switch (Event.button.button) {
                             case SDL_BUTTON_LEFT:
                                 grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] += strokeStrength;
-                                if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] > 1.0) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;}
+                                if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] > strokeMax) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = strokeMax;}
                                 madeChanges = true;
                                 break;
                             case SDL_BUTTON_RIGHT:
@@ -269,7 +264,7 @@ int main(int argc, char* args[]) {
 
                 if (MouseInfo.Pressed[SDL_BUTTON_LEFT]) {
                     grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] += strokeStrength;
-                    if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] > 1.0) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;}
+                    if (grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] > strokeMax) {grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = strokeMax;}
                     madeChanges = true;
                 } else if (MouseInfo.Pressed[SDL_BUTTON_RIGHT]) {
                     grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] -= strokeStrength;
@@ -277,7 +272,7 @@ int main(int argc, char* args[]) {
                     madeChanges = true;
                 }
                 if (Keystate[Keybinds.HardBrush]) {
-                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1.0;
+                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = strokeMax;
                     madeChanges = true;
                 }
                 if (Keystate[Keybinds.HardErase]) {
@@ -297,8 +292,8 @@ int main(int argc, char* args[]) {
             Window.clear();
 
             for (unsigned long int i = 0; i < grid.size(); i++) {
-                for (unsigned long int j = 0; j < grid[i].size(); j++) {
-                    const unsigned char shade = 255 - (unsigned char)(grid[i][j] * 255.0);
+                for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
+                    const unsigned char shade = 255 - btils::map<double, unsigned char>(grid.at(i).at(j), 0.0, strokeMax, 0, 255);
                     Window.fillRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, {shade, shade, shade, 255});
                     Window.drawRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, PresetColors[COLOR_LIGHT_GRAY]);
                 }
