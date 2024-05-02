@@ -59,14 +59,16 @@ std::vector<std::vector<double>> brushGrid(const std::vector<std::vector<double>
     for (int i = 0; i < radius; i++) {
         for (int j = radius - i; j < radius + i + 1; j++) {
             const int rowT = row - radius + i, rowB = row + radius - i, c = col - radius + j;
-            if (rowT < 0 || rowB >= (int)grid.size() || c < 0 || c >= (int)grid.at(i).size()) {continue;}
-        
-            output[rowT][c] += strength;
-            if (output[rowT][c] > maxVal) {output[rowT][c] = maxVal;}
-            else if (output[rowT][c] < minVal) {output[rowT][c] = minVal;}
-            output[rowB][c] += strength;
-            if (output[rowB][c] > maxVal) {output[rowB][c] = maxVal;}
-            else if (output[rowB][c] < minVal) {output[rowB][c] = minVal;}
+            if (rowT >= 0 && c >= 0 && c < (int)grid.at(i).size()) {
+                output[rowT][c] += strength;
+                if (output[rowT][c] > maxVal) {output[rowT][c] = maxVal;}
+                else if (output[rowT][c] < minVal) {output[rowT][c] = minVal;}
+            }
+            if (rowB < (int)grid.size() && c >= 0 && c < (int)grid.at(i).size()) {
+                output[rowB][c] += strength;
+                if (output[rowB][c] > maxVal) {output[rowB][c] = maxVal;}
+                else if (output[rowB][c] < minVal) {output[rowB][c] = minVal;}
+            }
         }
     }
     for (int i = col - radius; i < col + radius + 1; i++) {
@@ -79,11 +81,15 @@ std::vector<std::vector<double>> brushGrid(const std::vector<std::vector<double>
     return output;
 }
 
+const std::vector<unsigned char> tilesetVals = {2, 8, 10, 11, 16, 18, 22, 24, 26, 27, 30, 31, 64, 66, 72, 74, 75, 80, 82, 86, 88, 90, 91, 94, 95, 104, 106, 107, 120, 122, 123, 126, 127, 208, 210, 214, 216, 218, 219, 222, 223, 248, 250, 251, 254, 255, 0};
+
+
+
 double HireTime_Sec() {return SDL_GetTicks() * 0.01f;}
 int main(int argc, char* args[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {std::cout << "Error initializing SDL2\nERROR: " << SDL_GetError() << "\n";}
-    if (IMG_Init(IMG_INIT_PNG) != IMG_INIT_PNG) {std::cout << "Error initializing SDL2_image\nERROR: " << SDL_GetError() << "\n";}
-    if (TTF_Init() == -1) {std::cout << "Error initializing SDL2_ttf\nERROR: " << SDL_GetError() << "\n";}
+    if (IMG_Init(IMG_INIT_PNG) != IMG_INIT_PNG) {std::cout << "Error initializing SDL2_image\nERROR: " << IMG_GetError() << "\n";}
+    if (TTF_Init() == -1) {std::cout << "Error initializing SDL2_ttf\nERROR: " << TTF_GetError() << "\n";}
 
     RenderWindow Window("Trailblazer", 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_UTILITY);
     SDL_Event Event;
@@ -141,20 +147,33 @@ int main(int argc, char* args[]) {
     // Window.renderText(font, u"hola", {0, 0});
     // Window.show();
 
+    struct {
+        double Strength = 1.0;
+        double StrengthMax = 1.0;
+        double StrengthMin = 1.0;
+        int Radius = 0;
+        int RadiusMax = 0;
+        int RadiusMin = 0;
+    } Stroke;
+
+    struct {
+        int Size = 40;
+        double MaxVal = 1.0;
+        double MinVal = 0.0;
+    } GridCell;
+
     SDL_Point mousePosMaze = {0, 0}, prevMousePosMaze = mousePosMaze;
-    int cellSize = 80;
-    double strokeStrength = 1.0, strokeRadius = 0.0;
-    double strokeMax = 20.0, strokeMin = 0.0;
     double maxAscent = 2.0, maxDescent = 3.0;
+    
     std::vector<std::vector<double>> grid;
-    std::pair<unsigned long int, unsigned long int> start = std::make_pair(0, 0), goal = std::make_pair(Window.getH() / cellSize - 1, Window.getW() / cellSize - 1);
+    std::pair<unsigned long int, unsigned long int> start = std::make_pair(0, 0), goal = std::make_pair(Window.getH() / GridCell.Size - 1, Window.getW() / GridCell.Size - 1);
     std::vector<std::pair<unsigned long int, unsigned long int>> pathNodes;
     bool madeChanges = true;
 
-    for (int i = 0; i < Window.getH() / cellSize; i++) {
+    for (int i = 0; i < Window.getH() / GridCell.Size; i++) {
         grid.emplace_back();
-        for (int j = 0; j < Window.getW() / cellSize; j++) {
-            grid[i].emplace_back(strokeMin);
+        for (int j = 0; j < Window.getW() / GridCell.Size; j++) {
+            grid[i].emplace_back(GridCell.MinVal);
         }
     }
 
@@ -186,7 +205,7 @@ int main(int argc, char* args[]) {
                             MouseInfo.Rel = {0, 0};
                         }
 
-                        mousePosMaze = {MouseInfo.PosR.x / cellSize, MouseInfo.PosR.y / cellSize};
+                        mousePosMaze = {MouseInfo.PosR.x / GridCell.Size, MouseInfo.PosR.y / GridCell.Size};
                         break;
                     case SDL_KEYDOWN:
                         if (!Event.key.repeat) {
@@ -241,26 +260,49 @@ int main(int argc, char* args[]) {
                             if (Keystate[Keybinds.ClearMaze]) {
                                 for (unsigned long int i = 0; i < grid.size(); i++) {
                                     for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
-                                        grid[i][j] = strokeMin;
+                                        grid[i][j] = GridCell.MinVal;
                                     }
                                 }
+                                std::cout << "Grid cleared\n";
                                 madeChanges = true;
                             }
                             if (Keystate[Keybinds.PlaceStart]) {
-                                start = std::make_pair(MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize);
+                                start = std::make_pair(MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size);
+                                std::cout << "Start moved to " << start.first << ", " << start.second << "\n";
                                 madeChanges = true;
                             }
                             if (Keystate[Keybinds.PlaceGoal]) {
-                                goal = std::make_pair(MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize);
+                                goal = std::make_pair(MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size);
+                                std::cout << "Goal moved to " << goal.first << ", " << goal.second << "\n";
                                 madeChanges = true;
                             }
                             if (Keystate[Keybinds.HardBrush]) {
-                                grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, strokeMax, strokeRadius, strokeMax, strokeMin);
+                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, Stroke.StrengthMax, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                                 madeChanges = true;
                             }
                             if (Keystate[Keybinds.HardErase]) {
-                                grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, -strokeMax, strokeRadius, strokeMax, strokeMin);
+                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -Stroke.StrengthMax, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                                 madeChanges = true;
+                            }
+                            if (Keystate[SDL_SCANCODE_Q]) {
+                                Stroke.Radius += 1.0;
+                                if (Stroke.Radius > Stroke.RadiusMax) {Stroke.Radius = Stroke.RadiusMax;}
+                                std::cout << "Increased stroke radius, now: " << Stroke.Radius << "\n";
+                            }
+                            if (Keystate[SDL_SCANCODE_W]) {
+                                Stroke.Radius -= 1.0;
+                                if (Stroke.Radius < Stroke.RadiusMin) {Stroke.Radius = Stroke.RadiusMin;}
+                                std::cout << "Decreased stroke radius, now: " << Stroke.Radius << "\n";
+                            }
+                            if (Keystate[SDL_SCANCODE_A]) {
+                                Stroke.Strength += 1.0;
+                                if (Stroke.Strength > Stroke.StrengthMax) {Stroke.Strength = Stroke.StrengthMax;}
+                                std::cout << "Increased stroke strength, now: " << Stroke.Strength << "\n";
+                            }
+                            if (Keystate[SDL_SCANCODE_S]) {
+                                Stroke.Strength -= 1.0;
+                                if (Stroke.Strength < Stroke.StrengthMin) {Stroke.Strength = Stroke.StrengthMin;}
+                                std::cout << "Decreased stroke strength, now: " << Stroke.Strength << "\n";
                             }
                         }
                         break;
@@ -271,11 +313,11 @@ int main(int argc, char* args[]) {
                         MouseInfo.Pressed[Event.button.button] = true;
                         switch (Event.button.button) {
                             case SDL_BUTTON_LEFT:
-                                grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, strokeStrength, strokeRadius, strokeMax, strokeMin);
+                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                                 madeChanges = true;
                                 break;
                             case SDL_BUTTON_RIGHT:
-                                grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, -strokeStrength, strokeRadius, strokeMax, strokeMin);
+                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                                 madeChanges = true;
                                 break;
                         }
@@ -295,18 +337,18 @@ int main(int argc, char* args[]) {
                 prevMousePosMaze = mousePosMaze;
 
                 if (MouseInfo.Pressed[SDL_BUTTON_LEFT]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, strokeStrength, strokeRadius, strokeMax, strokeMin);
+                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                     madeChanges = true;
                 } else if (MouseInfo.Pressed[SDL_BUTTON_RIGHT]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, -strokeStrength, strokeRadius, strokeMax, strokeMin);
+                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                     madeChanges = true;
                 }
                 if (Keystate[Keybinds.HardBrush]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, strokeMax, strokeRadius, strokeMax, strokeMin);
+                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, Stroke.StrengthMax, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                     madeChanges = true;
                 }
                 if (Keystate[Keybinds.HardErase]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / cellSize, MouseInfo.PosR.x / cellSize, -strokeMax, strokeRadius, strokeMax, strokeMin);
+                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -Stroke.StrengthMax, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
                     madeChanges = true;
                 }
             }
@@ -323,16 +365,18 @@ int main(int argc, char* args[]) {
 
             for (unsigned long int i = 0; i < grid.size(); i++) {
                 for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
-                    const unsigned char shade = 255 - btils::map<double, unsigned char>(grid.at(i).at(j), strokeMin, strokeMax, 0, 255);
-                    Window.fillRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, {shade, shade, shade, 255});
-                    Window.drawRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, PresetColors[COLOR_LIGHT_GRAY]);
+                    // const unsigned char shade = 255 - btils::map<double, unsigned char>(grid.at(i).at(j), GridCell.MinVal, GridCell.MaxVal, 0, 255);
+                    // Window.fillRectangle(-Window.getW_2() + j * GridCell.Size, Window.getH_2() - i * GridCell.Size, GridCell.Size, GridCell.Size, {shade, shade, shade, 255});
+                    // Window.drawRectangle(-Window.getW_2() + j * GridCell.Size, Window.getH_2() - i * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_LIGHT_GRAY]);
+
+
                 }
             }
-            Window.fillRectangle(-Window.getW_2() + start.second * cellSize, Window.getH_2() - start.first * cellSize, cellSize, cellSize, PresetColors[COLOR_TEAL]);
-            Window.fillRectangle(-Window.getW_2() +  goal.second * cellSize, Window.getH_2() -  goal.first * cellSize, cellSize, cellSize, PresetColors[COLOR_MAROON]);
+            Window.fillRectangle(-Window.getW_2() + start.second * GridCell.Size, Window.getH_2() - start.first * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_TEAL]);
+            Window.fillRectangle(-Window.getW_2() +  goal.second * GridCell.Size, Window.getH_2() -  goal.first * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_MAROON]);
 
             for (unsigned long int i = 1; i < pathNodes.size(); i++) {
-                Window.drawLine(-Window.getW_2() + cellSize / 2 + pathNodes.at(i - 1).second * cellSize, Window.getH_2() - cellSize / 2 - pathNodes.at(i - 1).first  * cellSize, -Window.getW_2() + cellSize / 2 + pathNodes.at(i).second * cellSize, Window.getH_2() - cellSize / 2 - pathNodes.at(i).first * cellSize, PresetColors[COLOR_LIME]);
+                Window.drawLine(-Window.getW_2() + GridCell.Size / 2 + pathNodes.at(i - 1).second * GridCell.Size, Window.getH_2() - GridCell.Size / 2 - pathNodes.at(i - 1).first  * GridCell.Size, -Window.getW_2() + GridCell.Size / 2 + pathNodes.at(i).second * GridCell.Size, Window.getH_2() - GridCell.Size / 2 - pathNodes.at(i).first * GridCell.Size, PresetColors[COLOR_LIME]);
             }
 
             Window.show();
