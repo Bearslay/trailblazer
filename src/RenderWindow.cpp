@@ -180,19 +180,23 @@ SDL_Texture* RenderWindow::loadTexture(const std::string &path) {
     return output;
 }
 
+void RenderWindow::renderTexture(SDL_Texture* texture, const SDL_Rect &src, const SDL_Rect &dst) {
+    const SDL_Rect destination = {W_2 + dst.x, H_2 - dst.y, dst.w, dst.h};
+    SDL_RenderCopy(Renderer, texture, &src, &destination);
+}
 void RenderWindow::renderTexture(SDL_Texture* texture, const SDL_Rect &src, const SDL_Rect &dst, const double &angle, const SDL_Point &center, const SDL_RendererFlip &flip) {
     const SDL_Rect destination = {W_2 + dst.x, H_2 - dst.y, dst.w, dst.h};
     SDL_RenderCopyEx(Renderer, texture, &src, &destination, angle, &center, flip);
 }
 void RenderWindow::renderTexture(const Texture &texture, const SDL_Rect &dst) {
     const SDL_Rect source = texture.getFrame();
-    const SDL_Rect destination = {W_2 + dst.x - dst.w / 2, H_2 - dst.y - dst.h / 2, dst.w, dst.h};
+    const SDL_Rect destination = {W_2 + dst.x, H_2 - dst.y, dst.w, dst.h};
     const SDL_Point center = texture.getCenter();
     SDL_RenderCopyEx(Renderer, texture.getTexture(), &source, &destination, -texture.getAngle() * 180 / M_PI, &center, texture.getFlip());
 }
 void RenderWindow::renderTexture(const Texture &texture, const SDL_Point &pos) {
     const SDL_Rect src = texture.getFrame();
-    const SDL_Rect dst = {W_2 + pos.x - texture.getFrame().w / 2, H_2 - pos.y - texture.getFrame().h / 2, texture.getFrame().w, texture.getFrame().h};
+    const SDL_Rect dst = {W_2 + pos.x, H_2 - pos.y, texture.getFrame().w, texture.getFrame().h};
     const SDL_Point center = texture.getCenter();
     SDL_RenderCopyEx(Renderer, texture.getTexture(), &src, &dst, -texture.getAngle() * 180 / M_PI, &center, texture.getFlip());
 }
