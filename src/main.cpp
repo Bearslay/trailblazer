@@ -459,10 +459,7 @@ int main(int argc, char* args[]) {
             Window.show();
         }
 
-        frameTicks = SDL_GetTicks() - startTicks;
-        if (frameTicks < 1000 / Window.getRefreshRate()) {
-            SDL_Delay(1000 / Window.getRefreshRate() - frameTicks);
-        }
+        if ((frameTicks = SDL_GetTicks() - startTicks) < 1000 / Window.getRefreshRate()) {SDL_Delay(1000 / Window.getRefreshRate() - frameTicks);}
     }
 
     TTF_CloseFont(font);
