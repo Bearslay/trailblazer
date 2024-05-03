@@ -2,6 +2,7 @@
 #define UTILITIES
 
 #include <cmath>
+#include <vector>
 #include <type_traits>
 
 /* pi/8 rad or 22.5 deg */
@@ -193,6 +194,22 @@ namespace btils {
      * @param useRadians Whether to normalize to [0, 2 * pi) for radians or [0, 360) for degrees
      * @returns An angle, but in the range of either [0, 2 * pi) or [0, 360)    */
     double normalizeAngle(const double &angle, const bool &useRadians = true);
+
+    template <typename Type> long long binarySearch(const std::vector<Type> &list, const Type &target, const unsigned long int &lowerBounds = 0, const unsigned long int &upperBounds = __UINT64_MAX__) {
+        if (list.size() == 0) {return -1;}
+
+        unsigned long int lb = lowerBounds > list.size() ? list.size() - 1 : lowerBounds;
+        unsigned long int ub = upperBounds > list.size() ? list.size() - 1 : upperBounds;
+        while (lb <= ub) {
+            unsigned long int i = lb + (ub - lb) / 2;
+
+            if (list.at(i) == target) {return i;}
+
+            if (list.at(i) < target) {lb = i + 1;}
+            else {ub = i - 1;}
+        }
+        return -1;
+    }
 
 //     class UnitInterval {
 //         private:
