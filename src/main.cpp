@@ -127,7 +127,7 @@ std::vector<std::vector<unsigned char>> grid2TileIndexes(const std::vector<std::
     }
     return output;
 }
-std::pair<unsigned char, unsigned char> getTextureLocation(const unsigned char &index) {return std::make_pair(index % 6, index / 6 % 8);}
+std::pair<unsigned char, unsigned char> getTextureLocation(const unsigned char &index) {return std::make_pair(std::floor(index / 8), std::floor(index / 6));}
 
 double HireTime_Sec() {return SDL_GetTicks() * 0.01f;}
 int main(int argc, char* args[]) {
