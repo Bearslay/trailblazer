@@ -7,16 +7,65 @@
 #include "RenderWindow.hpp"
 #include "Utilities.hpp"
 
-const std::vector<unsigned char> halfMaskVals = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-unsigned char maskHalfTile(const bool &t, const bool &l, const bool &r, const bool &b) {return t + l * 2 + r * 4 + b * 8;}
-char halfMask2Index(const unsigned char &maskVal) {return btils::binarySearch(halfMaskVals, maskVal, 0, halfMaskVals.size() - 1);}
+unsigned char autotile_mask4Bit(const bool &t, const bool &l, const bool &r, const bool &b) {return t + l * 2 + r * 4 + b * 8;}
+char autotile4Bit(std::vector<std::vector<char>> &grid, const unsigned long int &x, const unsigned long int &y, const bool &addTile = true) {
+    if (y >= grid.size() || x >= grid.at(0).size()) {return -1;}
 
-const std::vector<unsigned char> fullMaskVals = {2, 8, 10, 11, 16, 18, 22, 24, 26, 27, 30, 31, 64, 66, 72, 74, 75, 80, 82, 86, 88, 90, 91, 94, 95, 104, 106, 107, 120, 122, 123, 126, 127, 208, 210, 214, 216, 218, 219, 222, 223, 248, 250, 251, 254, 255};
-unsigned char maskFullTile(const bool &tl, const bool &t, const bool &tr, const bool &l, const bool &r, const bool &bl, const bool &b, const bool &br) {
-    const bool topl = tl && t && l, topr = tr && t && r, botl = bl && b && l, botr = br && b && r;
-    return topl + t * 2 + topr * 4 + l * 8 + r * 16 + botl * 32 + b * 64 + botr * 128;
+    // Assign the target tile a dummy value
+    grid[y][x] = addTile - 1;
+
+    // Loop through the 3x3 grid of tiles that will probably be affected by the change
+    for (char i = -1; i < 2; i++) {
+        for (char j = -1; j < 2; j++) {
+            // Skip the corners
+            if (std::abs(i) == 1 && std::abs(j) == 1) {continue;}
+            // Make sure the targeted tile actually exists
+            if (y + i < 0 || y + i >= grid.size() || x + j < 0 || x + j >= grid.at(0).size()) {continue;}
+            // If the targeted tile isn't filled, then its value doesn't need to be updated
+            if (grid.at(y + i).at(x + j) < 0) {continue;}
+
+            const bool t = y + i > 0 ? (grid.at(y + i - 1).at(x + j) >= 0) : false;
+            const bool l = x + j > 0 ? (grid.at(y + i).at(x + j - 1) >= 0) : false;
+            const bool r = x + j < grid.at(0).size() - 1 ? (grid.at(y + i).at(x + j + 1) >= 0) : false;
+            const bool b = y + i < grid.size() - 1 ? (grid.at(y + i + 1).at(x + j) >= 0) : false;
+
+            grid[y + i][x + j] = autotile_mask4Bit(t, l, r, b);
+        }
+    }
+    return grid.at(y).at(x);
 }
-char fullMask2Index(const unsigned char &maskVal) {return maskVal == 0 ? 47 : btils::binarySearch(fullMaskVals, maskVal, 0, fullMaskVals.size() - 1) + 1;}
+
+const std::vector<unsigned char> autotile_8BitVals = {2, 8, 10, 11, 16, 18, 22, 24, 26, 27, 30, 31, 64, 66, 72, 74, 75, 80, 82, 86, 88, 90, 91, 94, 95, 104, 106, 107, 120, 122, 123, 126, 127, 208, 210, 214, 216, 218, 219, 222, 223, 248, 250, 251, 254, 255};
+unsigned char autotile_mask8Bit(const bool &tl, const bool &t, const bool &tr, const bool &l, const bool &r, const bool &bl, const bool &b, const bool &br) {return (tl && t && l) + t * 2 + (tr && t && r) * 4 + l * 8 + r * 16 + (bl && b && l) * 32 + b * 64 + (br && b && r) * 128;}
+char autotile_index8BitMask(const unsigned char &maskVal) {return maskVal == 0 ? 47 : btils::binarySearch(autotile_8BitVals, maskVal, 0, autotile_8BitVals.size() - 1) + 1;}
+char autotile8Bit(std::vector<std::vector<char>> &grid, const unsigned long int &x, const unsigned long int &y, const bool &addTile = true) {
+    if (y >= grid.size() || x >= grid.at(0).size()) {return -1;}
+
+    // Assign the target tile a dummy value
+    grid[y][x] = addTile - 1;
+
+    // Loop through the 3x3 grid of tiles that will probably be affected by the change
+    for (char i = -1; i < 2; i++) {
+        for (char j = -1; j < 2; j++) {
+            // Make sure the targeted tile actually exists
+            if (y + i < 0 || y + i >= grid.size() || x + j < 0 || x + j >= grid.at(0).size()) {continue;}
+            // If the targeted tile isn't filled, then its value doesn't need to be updated
+            if (grid.at(y + i).at(x + j) < 0) {continue;}
+
+            const bool tl = y + i > 0 && x + j > 0 ? (grid.at(y + i - 1).at(x + j - 1) >= 0) : false;
+            const bool t = y + i > 0 ? (grid.at(y + i - 1).at(x + j) >= 0) : false;
+            const bool tr = y + i > 0 && x + j < grid.at(0).size() - 1 ? (grid.at(y + i - 1).at(x + j + 1) >= 0) : false;
+            const bool l = x + j > 0 ? (grid.at(y + i).at(x + j - 1) >= 0) : false;
+            const bool r = x + j < grid.at(0).size() - 1 ? (grid.at(y + i).at(x + j + 1) >= 0) : false;
+            const bool bl = y + i < grid.size() - 1 && x + j > 0 ? (grid.at(y + i + 1).at(x + j - 1) >= 0) : false;
+            const bool b = y + i < grid.size() - 1 ? (grid.at(y + i + 1).at(x + j) >= 0) : false;
+            const bool br = y + i < grid.size() - 1 && x + j < grid.at(0).size() - 1 ? (grid.at(y + i + 1).at(x + j + 1) >= 0) : false;
+
+            grid[y + i][x + j] = autotile_index8BitMask(autotile_mask8Bit(tl, t, tr, l, r, bl, b, br));
+        }
+    }
+    return grid.at(y).at(x);
+}
 
 double HireTime_Sec() {return SDL_GetTicks() * 0.01f;}
 int main(int argc, char* args[]) {
@@ -24,7 +73,7 @@ int main(int argc, char* args[]) {
     if (IMG_Init(IMG_INIT_PNG) != IMG_INIT_PNG) {std::cout << "Error initializing SDL2_image\nERROR: " << IMG_GetError() << "\n";}
     if (TTF_Init() == -1) {std::cout << "Error initializing SDL2_ttf\nERROR: " << TTF_GetError() << "\n";}
 
-    RenderWindow Window("Tileset Bitmask", 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_UTILITY);
+    RenderWindow Window("Autotile", 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_UTILITY);
     SDL_Event Event;
     const Uint8 *Keystate = SDL_GetKeyboardState(NULL);
 
@@ -57,19 +106,22 @@ int main(int argc, char* args[]) {
     long double frameTime = 0.0;
     double accumulator = 0.0;
 
-    int cellSize = 80;
+    int cellSize = 40;
     SDL_Point mousePosGrid = {0, 0}, prevMousePosGrid = mousePosGrid;
     bool madeChanges = true;
+    bool use8Bit = true;
 
-    std::vector<std::vector<bool>> grid;
+    std::vector<std::vector<char>> grid8Bit, grid4Bit;
     for (int i = 0; i < Window.getH() / cellSize; i++) {
-        grid.emplace_back();
+        grid8Bit.emplace_back();
+        grid4Bit.emplace_back();
         for (int j = 0; j < Window.getW() / cellSize; j++) {
-            grid[i].emplace_back(false);
+            grid8Bit[i].emplace_back(-1);
+            grid4Bit[i].emplace_back(-1);
         }
     }
-    SDL_Texture *tileset = Window.loadTexture("../dev/png/optimalTilesetCompass.png");
-    char textureIndex = 0;
+    SDL_Texture *tileset8Bit = Window.loadTexture("../dev/png/optimalTilesetCompass.png");
+    SDL_Texture *tileset4Bit = Window.loadTexture("../dev/png/optimalTilesetCardinal.png");
 
     bool running = true;
     while (running) {
@@ -117,8 +169,15 @@ int main(int argc, char* args[]) {
                                 }
                             }
                             if (Keystate[SDL_SCANCODE_SPACE]) {
-                                // textureIndex = halfMask2Index(maskHalfTile(grid.at(0).at(1), grid.at(1).at(0), grid.at(1).at(2), grid.at(2).at(1)));
-                                textureIndex = fullMask2Index(maskFullTile(grid.at(0).at(0), grid.at(0).at(1), grid.at(0).at(2), grid.at(1).at(0), grid.at(1).at(2), grid.at(2).at(0), grid.at(2).at(1), grid.at(2).at(2)));
+                                use8Bit = !use8Bit;
+                            }
+                            if (Keystate[SDL_SCANCODE_C]) {
+                                for (unsigned long int i = 0; i < grid8Bit.size(); i++) {
+                                    for (unsigned long int j = 0; j < grid8Bit.at(0).size(); j++) {
+                                        if (use8Bit) {grid8Bit[i][j] = -1;}
+                                        else {grid4Bit[i][j] = -1;}
+                                    }
+                                }
                                 madeChanges = true;
                             }
                         }
@@ -130,16 +189,16 @@ int main(int argc, char* args[]) {
                         MouseInfo.Pressed[Event.button.button] = true;
                         switch (Event.button.button) {
                             case SDL_BUTTON_LEFT:
-                                if (MouseInfo.PosR.y / cellSize < (int)grid.size() && MouseInfo.PosR.x / cellSize < (int)grid.at(0).size()) {
-                                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1;
-                                    madeChanges = true;
+                                if (use8Bit) {
+                                    if (autotile8Bit(grid8Bit, mousePosGrid.x, mousePosGrid.y, true) != -1) {madeChanges = true;}
+                                } else {
+                                    if (autotile4Bit(grid4Bit, mousePosGrid.x, mousePosGrid.y, true) != -1) {madeChanges = true;}
                                 }
                                 break;
                             case SDL_BUTTON_RIGHT:
-                                if (MouseInfo.PosR.y / cellSize < (int)grid.size() && MouseInfo.PosR.x / cellSize < (int)grid.at(0).size()) {
-                                    grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 0;
-                                    madeChanges = true;
-                                }
+                                if (use8Bit) {autotile8Bit(grid8Bit, mousePosGrid.x, mousePosGrid.y, false);}
+                                else {autotile4Bit(grid4Bit, mousePosGrid.x, mousePosGrid.y, false);}
+                                madeChanges = true;
                                 break;
                         }
                         break;
@@ -158,16 +217,16 @@ int main(int argc, char* args[]) {
                 prevMousePosGrid = mousePosGrid;
 
                 if (MouseInfo.Pressed[SDL_BUTTON_LEFT]) {
-                    if (MouseInfo.PosR.y / cellSize < (int)grid.size() && MouseInfo.PosR.x / cellSize < (int)grid.at(0).size()) {
-                        grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 1;
-                        madeChanges = true;
+                    if (use8Bit) {
+                        if (autotile8Bit(grid8Bit, mousePosGrid.x, mousePosGrid.y, true) != -1) {madeChanges = true;}
+                    } else {
+                        if (autotile4Bit(grid4Bit, mousePosGrid.x, mousePosGrid.y, true) != -1) {madeChanges = true;}
                     }
                 }
                 if (MouseInfo.Pressed[SDL_BUTTON_RIGHT]) {
-                    if (MouseInfo.PosR.y / cellSize < (int)grid.size() && MouseInfo.PosR.x / cellSize < (int)grid.at(0).size()) {
-                        grid[MouseInfo.PosR.y / cellSize][MouseInfo.PosR.x / cellSize] = 0;
-                        madeChanges = true;
-                    }
+                    if (use8Bit) {autotile8Bit(grid8Bit, mousePosGrid.x, mousePosGrid.y, false);}
+                    else {autotile4Bit(grid4Bit, mousePosGrid.x, mousePosGrid.y, false);}
+                    madeChanges = true;
                 }
             }
 
@@ -181,18 +240,20 @@ int main(int argc, char* args[]) {
             madeChanges = false;
             Window.clear();
 
-            for (unsigned long int i = 0; i < grid.size(); i++) {
-                for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
+            for (unsigned long int i = 0; i < grid8Bit.size(); i++) {
+                for (unsigned long int j = 0; j < grid8Bit.at(i).size(); j++) {
                     Window.fillRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, PresetColors[COLOR_WHITE]);
                     Window.drawRectangle(-Window.getW_2() + j * cellSize, Window.getH_2() - i * cellSize, cellSize, cellSize, PresetColors[COLOR_BLACK]);
+
+                    if (grid8Bit.at(i).at(j) >= 0) {
+                        const SDL_Rect frame = {grid8Bit.at(i).at(j) % 8 * 16, grid8Bit.at(i).at(j) / 8 * 16, 16, 16};
+                        Window.renderTexture(tileset8Bit, frame, {-Window.getW_2() + (int)j * cellSize, Window.getH_2() - (int)i * cellSize, cellSize, cellSize});
+                    }
+                    if (grid4Bit.at(i).at(j) >= 0) {
+                        const SDL_Rect frame = {grid4Bit.at(i).at(j) % 4 * 16, grid4Bit.at(i).at(j) / 4 * 16, 16, 16};
+                        Window.renderTexture(tileset4Bit, frame, {-Window.getW_2() + (int)j * cellSize, Window.getH_2() - (int)i * cellSize, cellSize, cellSize});
+                    }
                 }
-            }
-
-            // Detect which cells had the changes made and only compute the new texture for that cell
-
-            if (textureIndex >= 0 && textureIndex < 48) {
-                const SDL_Rect frame = {textureIndex % 8 * 16, textureIndex / 8 * 16, 16, 16};
-                Window.renderTexture(tileset, frame, {-Window.getW_2() + cellSize, Window.getH_2() - cellSize, cellSize, cellSize});
             }
 
             Window.show();
@@ -202,6 +263,8 @@ int main(int argc, char* args[]) {
     }
 
     TTF_CloseFont(font);
+    SDL_DestroyTexture(tileset8Bit);
+    SDL_DestroyTexture(tileset4Bit);
 
     TTF_Quit();
     IMG_Quit();
