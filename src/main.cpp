@@ -81,54 +81,6 @@ std::vector<std::vector<double>> brushGrid(const std::vector<std::vector<double>
     return output;
 }
 
-const std::vector<unsigned char> tilesetVals = {47, 2, 8, 10, 11, 16, 18, 22, 24, 26, 27, 30, 31, 64, 66, 72, 74, 75, 80, 82, 86, 88, 90, 91, 94, 95, 104, 106, 107, 120, 122, 123, 126, 127, 208, 210, 214, 216, 218, 219, 222, 223, 248, 250, 251, 254, 255, 0};
-// const std::vector<std::pair<unsigned char, unsigned char>> a = {{0, 0}, {0, 1}, {0, 2}, {0, 3}, {1, 0}, {1, 1}, {1, 2}, {1, 3}, {2, 0}, {2, 1}, {2, 2}, {2, 3}, {3, 0}, {3, 1}, {3, 2}, {3, 3}};
-
-std::vector<std::vector<unsigned char>> grid2TileIndexes(const std::vector<std::vector<double>> &grid, const double &cutoffVal = 1.0) {
-    std::vector<std::vector<unsigned char>> output;
-    unsigned char cellSum = 0;
-    for (unsigned long int i = 0; i < grid.size(); i++) {
-        output.emplace_back();
-        for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
-            if (i > 0) {
-                cellSum += grid.at(i - 1).at(j) >= cutoffVal ? 2 : 0;
-                if (j > 0) {
-                    cellSum += grid.at(i - 1).at(j - 1) >= cutoffVal ? 1 : 0;
-                }
-                if (j < grid.at(i).size() - 1) {
-                    cellSum += grid.at(i - 1).at(j + 1) >= cutoffVal ? 4 : 0;
-                }
-            }
-            if (j > 0) {
-                cellSum += grid.at(i).at(j - 1) >= cutoffVal ? 8 : 0;
-            }
-            if (j < grid.at(i).size() - 1) {
-                cellSum += grid.at(i).at(j + 1) >= cutoffVal ? 16 : 0;
-            }
-            if (i < grid.size() - 1) {
-                cellSum += grid.at(i + 1).at(j) >= cutoffVal ? 64 : 0;
-                if (j > 0) {
-                    cellSum += grid.at(i + 1).at(j - 1) >= cutoffVal ? 32 : 0;
-                }
-                if (j < grid.at(i).size() - 1) {
-                    cellSum += grid.at(i + 1).at(j + 1) >= cutoffVal ? 128 : 0;
-                }
-            }
-            for (unsigned long int k = 0; k < tilesetVals.size(); k++) {
-                if (tilesetVals.at(k) == cellSum) {
-                    output.emplace_back(tilesetVals.at(k));
-                    std::cout << (int)tilesetVals.at(k) << " ";
-                    break;
-                }
-            }
-            cellSum = 0;
-        }
-        std::cout << "\n";
-    }
-    return output;
-}
-std::pair<unsigned char, unsigned char> getTextureLocation(const unsigned char &index) {return std::make_pair(std::floor(index / 8), std::floor(index / 6));}
-
 double HireTime_Sec() {return SDL_GetTicks() * 0.01f;}
 int main(int argc, char* args[]) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {std::cout << "Error initializing SDL2\nERROR: " << SDL_GetError() << "\n";}
@@ -136,7 +88,6 @@ int main(int argc, char* args[]) {
     if (TTF_Init() == -1) {std::cout << "Error initializing SDL2_ttf\nERROR: " << TTF_GetError() << "\n";}
 
     RenderWindow Window("Trailblazer", 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_UTILITY);
-    // RenderWindow Window("Trailblazer", 1260, 630, SDL_WINDOW_SHOWN | SDL_WINDOW_UTILITY);
     SDL_Event Event;
     const Uint8 *Keystate = SDL_GetKeyboardState(NULL);
 
@@ -202,7 +153,6 @@ int main(int argc, char* args[]) {
     } Stroke;
 
     struct {
-        // For 1280x720, should be 1, 2, 4, 5, 8, 10, 16, 20, 40, or 80
         int Size = 20;
         double MaxVal = 20.0;
         double MinVal = 0.0;
@@ -222,36 +172,6 @@ int main(int argc, char* args[]) {
             grid[i].emplace_back(GridCell.MinVal);
         }
     }
-
-    // grid = {
-    //     // {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0},
-    //     // {0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0},
-    //     // {0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0},
-    //     // {0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    //     // {0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0},
-    //     // {0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0},
-    //     // {0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0},
-    //     // {1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0},
-    //     // {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-    //     {0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    //     {0.0, 0.0, 1.0, 0.0, 0.0, 0.0},
-    //     {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-    // };
-    // SDL_Texture *tileset = Window.loadTexture("dev/png/tilesetCompass.png");
-    // std::vector<SDL_Rect> tileFrames;
-    // std::vector<std::vector<unsigned char>> tileIndexes = grid2TileIndexes(grid, Stroke.StrengthMax);
-    // for (unsigned long int i = 0; i < tileIndexes.size(); i++) {
-    //     for (unsigned long int j = 0; j < tileIndexes.at(i).size(); j++) {
-            
-    //         std::pair<unsigned char, unsigned char> tilePos = getTextureLocation(tileIndexes.at(i).at(j));
-    //         // std::cout << (int)tilePos.first << " " << (int)tilePos.second << "\n";
-    //         tileFrames.emplace_back();
-    //         tileFrames.at(tileFrames.size() - 1).x = tilePos.first * 16;
-    //         tileFrames.at(tileFrames.size() - 1).y = tilePos.second * 16;
-    //         tileFrames.at(tileFrames.size() - 1).h = 16;
-    //         tileFrames.at(tileFrames.size() - 1).w = 16;
-    //     }
-    // }
 
     bool running = true;
     while (running) {
@@ -444,9 +364,6 @@ int main(int argc, char* args[]) {
                     const unsigned char shade = 255 - btils::map<double, unsigned char>(grid.at(i).at(j), GridCell.MinVal, GridCell.MaxVal, 0, 255);
                     Window.fillRectangle(-Window.getW_2() + j * GridCell.Size, Window.getH_2() - i * GridCell.Size, GridCell.Size, GridCell.Size, {shade, shade, shade, 255});
                     Window.drawRectangle(-Window.getW_2() + j * GridCell.Size, Window.getH_2() - i * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_LIGHT_GRAY]);
-
-                    // const SDL_Rect tilesetDst = {-Window.getW_2() + (int)j * GridCell.Size, Window.getH_2() - (int)i * GridCell.Size, GridCell.Size, GridCell.Size};
-                    // Window.renderTexture(tileset, tileFrames.at(i * 8 + j), tilesetDst);
                 }
             }
             Window.fillRectangle(-Window.getW_2() + start.second * GridCell.Size, Window.getH_2() - start.first * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_TEAL]);
