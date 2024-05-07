@@ -20,6 +20,7 @@ class Texture {
         Texture(SDL_Texture* texture);
         Texture(SDL_Texture* texture, SDL_Point center, SDL_Rect frame);
         Texture(SDL_Texture* texture, SDL_Rect frame);
+        ~Texture() {SDL_DestroyTexture(Source);}
 
         SDL_Texture* getTexture() const;
         SDL_Point getCenter() const;
