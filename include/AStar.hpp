@@ -180,8 +180,6 @@ class AStar_Grid {
                 if (AStar_Grid::successorManhattan(grid, dst, closedList, openList, cellDetails, row, col,  0,  1, maxAscend, maxDescend, cardinalDistance, diagonalDistance)) {return AStar_Grid::getPath(dst, cellDetails);}
                 if (AStar_Grid::successorManhattan(grid, dst, closedList, openList, cellDetails, row, col,  0, -1, maxAscend, maxDescend, cardinalDistance, diagonalDistance)) {return AStar_Grid::getPath(dst, cellDetails);}
             }
-
-            std::cout << "No path\n";
             return {src};
         }
         static std::vector<std::pair<unsigned long int, unsigned long int>> diagonal(const std::vector<std::vector<double>> &grid, const std::pair<unsigned long int, unsigned long int> &src, const std::pair<unsigned long int, unsigned long int> &dst, const double &maxAscend, const double &maxDescend, const unsigned char &moveType = ASTAR_MOVE_NOBOUND, const double &cardinalDistance = 1.0, const double &diagonalDistance = 1.41421356237309504880) {
@@ -231,8 +229,6 @@ class AStar_Grid {
                 if (AStar_Grid::successorDiagonal(grid, dst, closedList, openList, cellDetails, row, col, -1,  1, maxAscend, maxDescend, cardinalDistance, diagonalDistance, moveType)) {return AStar_Grid::getPath(dst, cellDetails);}
                 if (AStar_Grid::successorDiagonal(grid, dst, closedList, openList, cellDetails, row, col,  1, -1, maxAscend, maxDescend, cardinalDistance, diagonalDistance, moveType)) {return AStar_Grid::getPath(dst, cellDetails);}
             }
-
-            std::cout << "No path\n";
             return {src};
         }
         static std::vector<std::pair<unsigned long int, unsigned long int>> euclidean(const std::vector<std::vector<double>> &grid, const std::pair<unsigned long int, unsigned long int> &src, const std::pair<unsigned long int, unsigned long int> &dst, const double &maxAscend, const double &maxDescend, const unsigned char &moveType = ASTAR_MOVE_NOBOUND, const double &cardinalDistance = 1.0, const double &diagonalDistance = 1.41421356237309504880) {
@@ -282,8 +278,6 @@ class AStar_Grid {
                 if (AStar_Grid::successorEuclidean(grid, dst, closedList, openList, cellDetails, row, col, -1,  1, maxAscend, maxDescend, cardinalDistance, diagonalDistance, moveType)) {return AStar_Grid::getPath(dst, cellDetails);}
                 if (AStar_Grid::successorEuclidean(grid, dst, closedList, openList, cellDetails, row, col,  1, -1, maxAscend, maxDescend, cardinalDistance, diagonalDistance, moveType)) {return AStar_Grid::getPath(dst, cellDetails);}
             }
-
-            std::cout << "No path\n";
             return {src};
         }
 } AStar;
