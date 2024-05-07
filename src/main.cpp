@@ -3,55 +3,17 @@
 #include <SDL2/SDL_ttf.h>
 #include <iostream>
 #include <vector>
+#include <string>
 
 #include "RenderWindow.hpp"
 #include "Utilities.hpp"
-
-#include "Perlin.hpp"
 #include "AStar.hpp"
 
-std::vector<std::vector<double>> getNoise(int w, int h, int o = 8, double bias = 2.0, double scale = 350.0) {
-    std::vector<std::vector<double>> output;
-
-    for (int i = 0; i < h; i++) {
-        output.emplace_back();
-        for (int j = 0; j < w; j++) {
-            double val = 0.0, freq = 1.0, amp = 1.0;
-
-            for (int k = 0; k < o; k++) {
-                val += perlin(i * freq / scale, j * freq / scale) * amp;
-
-                freq *= bias;
-                amp /= bias;
-            }
-
-            if (val > 1.0) {val = 1.0;}
-            else if (val < -1.0) {val = -1.0;}
-
-            output[i].emplace_back(val * 0.5 + 0.5);
-        }
-    }
-
-    return output;
+template <typename ArithType> std::u16string to_u16string(const ArithType &input) {
+    static_assert(std::is_arithmetic<ArithType>::value, "ArithType must be an arithmetic type");
+    std::string str = std::to_string(input);
+    return {str.begin(), str.end()};
 }
-
-// SDL_Texture* getNoiseTexture(int w, int h, int o = 8, double bias = 2.0, double scale = 350.0) {
-//     std::vector<std::vector<Uint8>> noise = getNoise(w, h, o, bias, scale);
-//     SDL_Surface* surface = SDL_CreateRGBSurface(0, w, h, 32, 0, 0, 0, 0);
-//     SDL_LockSurface(surface);
-//     Uint8* pixels = (Uint8*)surface->pixels;
-//     for (unsigned long int i = 0; i < noise.size(); i++) {
-//         for (unsigned long int j = 0; j < noise[0].size(); j++) {
-//             const unsigned char val = (unsigned char)((noise[i][j] * 0.5 + 0.5) * 255.0);
-//             pixels[i * surface->pitch + j * surface->format->BytesPerPixel + 0] = val;
-//             pixels[i * surface->pitch + j * surface->format->BytesPerPixel + 1] = val;
-//             pixels[i * surface->pitch + j * surface->format->BytesPerPixel + 2] = val;
-//         }
-//     }
-//     SDL_UnlockSurface(surface);
-//     SDL_SaveBMP(surface, "dev/map.bmp");
-//     return nullptr;
-// }
 
 std::vector<std::vector<double>> brushGrid(const std::vector<std::vector<double>> &grid, const int &row, const int &col, const double &strength, const int &radius, const double &maxVal, const double &minVal = 0.0) {
     if (row < 0 || row >= (int)grid.size() || col < 0 || col >= (int)grid.at(row).size()) {return grid;}
@@ -91,7 +53,10 @@ int main(int argc, char* args[]) {
     SDL_Event Event;
     const Uint8 *Keystate = SDL_GetKeyboardState(NULL);
 
-    TTF_Font *font = TTF_OpenFont("dev/fonts/GNU-Unifont.ttf", 20);
+    TTF_Font *font = TTF_OpenFont("dev/fonts/GNU-Unifont.ttf", 30);
+    Texture tile(Window.loadTexture("dev/png/tile.png"), {32, 32}, {0, 0, 64, 64});
+    tile.setMods({64, 64, 64, 255});
+    const int tileSize = 64;
 
     struct {
         SDL_Point PosC = {0, 0};
@@ -104,18 +69,12 @@ int main(int argc, char* args[]) {
         bool Captured = false;
 
         bool Pressed[5] = {false, false, false, false, false};
-    } MouseInfo;
+    } MouseState;
 
     struct {
         int Quit = SDL_SCANCODE_ESCAPE;
         int ToggleCapture = SDL_SCANCODE_F1;
-        int AStar_Cardinal = SDL_SCANCODE_1;
-        int AStar_Compass_Free = SDL_SCANCODE_2;
-        int AStar_General_Free = SDL_SCANCODE_3;
-        int AStar_Compass_NoPhase = SDL_SCANCODE_4;
-        int AStar_General_NoPhase = SDL_SCANCODE_5;
-        int AStar_Compass_NoTouch = SDL_SCANCODE_6;
-        int AStar_General_NoTouch = SDL_SCANCODE_7;
+        int Pathfind = SDL_SCANCODE_1;
         int PlaceStart = SDL_SCANCODE_Z;
         int PlaceGoal = SDL_SCANCODE_X;
         int ClearMaze = SDL_SCANCODE_C;
@@ -132,17 +91,6 @@ int main(int argc, char* args[]) {
     long double frameTime = 0.0;
     double accumulator = 0.0;
 
-    // std::vector<std::vector<double>> Noise = getNoise(Window.getW(), Window.getH());
-
-    // Window.clear();
-    // for (unsigned long int i = 0; i < Noise.size(); i++) {
-    //     for (unsigned long int j = 0; j < Noise[0].size(); j++) {
-    //         Window.drawPixel(-Window.getW_2() + j, Window.getH_2() - i, {Noise[i][j], Noise[i][j], Noise[i][j], 255});
-    //     }
-    // }
-    // Window.renderText(font, u"hola", {0, 0});
-    // Window.show();
-
     struct {
         double Strength = 1.0;
         double StrengthMax = 5.0;
@@ -150,30 +98,38 @@ int main(int argc, char* args[]) {
         int Radius = 0;
         int RadiusMax = 5;
         int RadiusMin = 0;
-    } Stroke;
+    } Tool;
 
     struct {
-        int Size = 20;
+        std::vector<std::vector<double>> Grid;
+        
+        const std::vector<int> Sizes = {1, 2, 3, 4, 6, 8, 9, 12, 16, 18, 24, 36, 48, 72, 144};
+        int CellSize = 9;
+        SDL_Point Dims = {720 / CellSize, 576 / CellSize};
+        
         double MaxVal = 20.0;
         double MinVal = 0.0;
-    } GridCell;
+        
+        std::pair<unsigned long int, unsigned long int> Start = std::make_pair(0, 0), Goal = std::make_pair(Dims.y - 1, Dims.x - 1);
+        SDL_Point Pos = {0, 0}, PrevPos = Pos;
+        SDL_Point Offset = {72, 72};
+    } Map;
 
-    SDL_Point mousePosMaze = {0, 0}, prevMousePosMaze = mousePosMaze;
-    double maxAscent = 2.0, maxDescent = 3.0;
-    
-    std::vector<std::vector<double>> grid;
-    std::pair<unsigned long int, unsigned long int> start = std::make_pair(0, 0), goal = std::make_pair(Window.getH() / GridCell.Size - 1, Window.getW() / GridCell.Size - 1);
-    std::vector<std::pair<unsigned long int, unsigned long int>> pathNodes;
-    bool madeChanges = true;
-
-    for (int i = 0; i < Window.getH() / GridCell.Size; i++) {
-        grid.emplace_back();
-        for (int j = 0; j < Window.getW() / GridCell.Size; j++) {
-            grid[i].emplace_back(GridCell.MinVal);
+    for (int i = 0; i < Map.Dims.y; i++) {
+        Map.Grid.emplace_back();
+        for (int j = 0; j < Map.Dims.x; j++) {
+            Map.Grid[i].emplace_back(Map.MinVal);
         }
     }
 
-    bool running = true;
+    struct {
+        std::vector<std::pair<unsigned long int, unsigned long int>> Nodes;
+        double MaxUp = 2.0, MaxDown = 3.0;
+    } Pathfinder;
+
+    std::u16string asd = u"blah" + to_u16string<int>(156);
+
+    bool running = true, madeChanges = true;
     while (running) {
         startTicks = SDL_GetTicks();
         newTime = HireTime_Sec();
@@ -188,117 +144,88 @@ int main(int argc, char* args[]) {
                         running = false;
                         break;
                     case SDL_MOUSEMOTION:
-                        MouseInfo.Motion = true;
-                        SDL_GetMouseState(&MouseInfo.PosR.x, &MouseInfo.PosR.y);
-                        MouseInfo.PosC.x = MouseInfo.PosR.x - Window.getW_2();
-                        MouseInfo.PosC.y = Window.getH() - MouseInfo.PosR.y - Window.getH_2();
+                        MouseState.Motion = true;
+                        SDL_GetMouseState(&MouseState.PosR.x, &MouseState.PosR.y);
+                        MouseState.PosC.x = MouseState.PosR.x - Window.getW_2();
+                        MouseState.PosC.y = Window.getH() - MouseState.PosR.y - Window.getH_2();
 
-                        if (!MouseInfo.Released) {
-                            MouseInfo.Rel.x = Event.motion.xrel;
-                            MouseInfo.Rel.y = -Event.motion.yrel;
+                        if (!MouseState.Released) {
+                            MouseState.Rel.x = Event.motion.xrel;
+                            MouseState.Rel.y = -Event.motion.yrel;
                         } else {
-                            MouseInfo.Released = false;
-                            MouseInfo.Rel = {0, 0};
+                            MouseState.Released = false;
+                            MouseState.Rel = {0, 0};
                         }
 
-                        mousePosMaze = {MouseInfo.PosR.x / GridCell.Size, MouseInfo.PosR.y / GridCell.Size};
+                        Map.Pos = {(MouseState.PosR.x - Map.Offset.x) / Map.CellSize, (MouseState.PosR.y - Map.Offset.y) / Map.CellSize};
                         break;
                     case SDL_KEYDOWN:
                         if (!Event.key.repeat) {
                             if (Keystate[Keybinds.ToggleCapture]) {
-                                MouseInfo.Captured = !MouseInfo.Captured;
-                                if (MouseInfo.Captured) {
+                                MouseState.Captured = !MouseState.Captured;
+                                if (MouseState.Captured) {
                                     SDL_SetRelativeMouseMode(SDL_TRUE);
-                                    MouseInfo.Released = true;
-                                    MouseInfo.Rel = {0, 0};
+                                    MouseState.Released = true;
+                                    MouseState.Rel = {0, 0};
                                 } else {
                                     SDL_SetRelativeMouseMode(SDL_FALSE);
                                     Window.centerMouse();
-                                    MouseInfo.PosC = {0, 0};
-                                    MouseInfo.PosR = {0, 0};
+                                    MouseState.PosC = {0, 0};
+                                    MouseState.PosR = {0, 0};
                                 }
                             }
-                            if (Keystate[Keybinds.AStar_Cardinal]) {
+                            else if (Keystate[Keybinds.Pathfind]) {
                                 madeChanges = true;
-                                pathNodes = AStar.cardinal(grid, start, goal, maxAscent, maxDescent);
-                                std::cout << "Cardinal\n";
+                                Pathfinder.Nodes = AStar.euclidean(Map.Grid, Map.Start, Map.Goal, Pathfinder.MaxUp, Pathfinder.MaxDown, ASTAR_MOVE_NOBOUND);
+                                if (Pathfinder.Nodes.size() <= 1) {std::cout << "[Pathfinding] No path found";}
+                                else {std::cout << "[Path] Path found\n";}
                             }
-                            if (Keystate[Keybinds.AStar_Compass_Free]) {
-                                madeChanges = true;
-                                pathNodes = AStar.diagonal(grid, start, goal, maxAscent, maxDescent, ASTAR_MOVE_NOBOUND);
-                                std::cout << "Diagonal - No Bounds\n";
-                            }
-                            if (Keystate[Keybinds.AStar_General_Free]) {
-                                madeChanges = true;
-                                pathNodes = AStar.euclidean(grid, start, goal, maxAscent, maxDescent, ASTAR_MOVE_NOBOUND);
-                                std::cout << "Euclidean - No Bounds\n";
-                            }
-                            if (Keystate[Keybinds.AStar_Compass_NoPhase]) {
-                                madeChanges = true;
-                                pathNodes = AStar.diagonal(grid, start, goal, maxAscent, maxDescent, ASTAR_MOVE_NOPHASE);
-                                std::cout << "Diagonal - No Phasing\n";
-                            }
-                            if (Keystate[Keybinds.AStar_General_NoPhase]) {
-                                madeChanges = true;
-                                pathNodes = AStar.euclidean(grid, start, goal, maxAscent, maxDescent, ASTAR_MOVE_NOPHASE);
-                                std::cout << "Euclidean - No Phasing\n";
-                            }
-                            if (Keystate[Keybinds.AStar_Compass_NoTouch]) {
-                                madeChanges = true;
-                                pathNodes = AStar.diagonal(grid, start, goal, maxAscent, maxDescent, ASTAR_MOVE_NOTOUCH);
-                                std::cout << "Diagonal - No Touching\n";
-                            }
-                            if (Keystate[Keybinds.AStar_General_NoTouch]) {
-                                madeChanges = true;
-                                pathNodes = AStar.diagonal(grid, start, goal, maxAscent, maxDescent, ASTAR_MOVE_NOTOUCH);
-                                std::cout << "Euclidean - No Touching\n";
-                            }
-                            if (Keystate[Keybinds.ClearMaze]) {
-                                for (unsigned long int i = 0; i < grid.size(); i++) {
-                                    for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
-                                        grid[i][j] = GridCell.MinVal;
+                            else if (Keystate[Keybinds.ClearMaze]) {
+                                for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
+                                    for (unsigned long int j = 0; j < Map.Grid.at(i).size(); j++) {
+                                        Map.Grid[i][j] = Map.MinVal;
                                     }
                                 }
-                                std::cout << "Grid cleared\n";
+                                std::cout << "[Grid] Grid cleared\n";
                                 madeChanges = true;
                             }
-                            if (Keystate[Keybinds.PlaceStart]) {
-                                start = std::make_pair(MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size);
-                                std::cout << "Start moved to " << start.first << ", " << start.second << "\n";
+                            else if (Keystate[Keybinds.PlaceStart]) {
+                                Map.Start = std::make_pair(Map.Pos.y, Map.Pos.x);
+                                std::cout << "[Grid] Start moved to " << Map.Start.first << ", " << Map.Start.second << "\n";
                                 madeChanges = true;
                             }
-                            if (Keystate[Keybinds.PlaceGoal]) {
-                                goal = std::make_pair(MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size);
-                                std::cout << "Goal moved to " << goal.first << ", " << goal.second << "\n";
+                            else if (Keystate[Keybinds.PlaceGoal]) {
+                                Map.Goal = std::make_pair(Map.Pos.y, Map.Pos.x);
+                                std::cout << "[Grid] Goal moved to " << Map.Goal.first << ", " << Map.Goal.second << "\n";
                                 madeChanges = true;
                             }
-                            if (Keystate[Keybinds.HardBrush]) {
-                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, GridCell.MaxVal, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                            else if (Keystate[Keybinds.HardBrush]) {
+                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Map.MaxVal, Tool.Radius, Map.MaxVal, Map.MinVal);
                                 madeChanges = true;
                             }
-                            if (Keystate[Keybinds.HardErase]) {
-                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -GridCell.MaxVal, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                            else if (Keystate[Keybinds.HardErase]) {
+                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Map.MaxVal, Tool.Radius, Map.MaxVal, Map.MinVal);
                                 madeChanges = true;
                             }
-                            if (Keystate[SDL_SCANCODE_Q]) {
-                                Stroke.Radius += 1.0;
-                                if (Stroke.Radius > Stroke.RadiusMax) {Stroke.Radius = Stroke.RadiusMax;}
-                                std::cout << "Increased stroke radius, now: " << Stroke.Radius << "\n";
+                            else if (Keystate[SDL_SCANCODE_Q]) {
+                                Tool.Radius += 1.0;
+                                if (Tool.Radius > Tool.RadiusMax) {Tool.Radius = Tool.RadiusMax;}
+                                std::cout << "[Tool] Increased radius - now " << Tool.Radius << "\n";
                             }
-                            if (Keystate[SDL_SCANCODE_W]) {
-                                Stroke.Radius -= 1.0;
-                                if (Stroke.Radius < Stroke.RadiusMin) {Stroke.Radius = Stroke.RadiusMin;}
-                                std::cout << "Decreased stroke radius, now: " << Stroke.Radius << "\n";
+                            else if (Keystate[SDL_SCANCODE_W]) {
+                                Tool.Radius -= 1.0;
+                                if (Tool.Radius < Tool.RadiusMin) {Tool.Radius = Tool.RadiusMin;}
+                                std::cout << "[Tool] Decreased radius - now " << Tool.Radius << "\n";
                             }
-                            if (Keystate[SDL_SCANCODE_A]) {
-                                Stroke.Strength += 1.0;
-                                if (Stroke.Strength > Stroke.StrengthMax) {Stroke.Strength = Stroke.StrengthMax;}
-                                std::cout << "Increased stroke strength, now: " << Stroke.Strength << "\n";
+                            else if (Keystate[SDL_SCANCODE_A]) {
+                                Tool.Strength += 1.0;
+                                if (Tool.Strength > Tool.StrengthMax) {Tool.Strength = Tool.StrengthMax;}
+                                std::cout << "[Tool] Increased strength - now " << Tool.Strength << "\n";
                             }
-                            if (Keystate[SDL_SCANCODE_S]) {
-                                Stroke.Strength -= 1.0;
-                                if (Stroke.Strength < Stroke.StrengthMin) {Stroke.Strength = Stroke.StrengthMin;}
-                                std::cout << "Decreased stroke strength, now: " << Stroke.Strength << "\n";
+                            else if (Keystate[SDL_SCANCODE_S]) {
+                                Tool.Strength -= 1.0;
+                                if (Tool.Strength < Tool.StrengthMin) {Tool.Strength = Tool.StrengthMin;}
+                                std::cout << "[Tool] Decreased strength - now " << Tool.Strength << "\n";
                             }
                         }
                         break;
@@ -306,20 +233,20 @@ int main(int argc, char* args[]) {
                         Window.handleEvent(Event.window);
                         break;
                     case SDL_MOUSEBUTTONDOWN:
-                        MouseInfo.Pressed[Event.button.button] = true;
+                        MouseState.Pressed[Event.button.button] = true;
                         switch (Event.button.button) {
                             case SDL_BUTTON_LEFT:
-                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
                                 madeChanges = true;
                                 break;
                             case SDL_BUTTON_RIGHT:
-                                grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
                                 madeChanges = true;
                                 break;
                         }
                         break;
                     case SDL_MOUSEBUTTONUP:
-                        MouseInfo.Pressed[Event.button.button] = false;
+                        MouseState.Pressed[Event.button.button] = false;
                         break;
                 }
                 if (!running) {break;}
@@ -329,29 +256,29 @@ int main(int argc, char* args[]) {
                 break;
             }
 
-            if ((mousePosMaze.x != prevMousePosMaze.x) || (mousePosMaze.y != prevMousePosMaze.y)) {
-                prevMousePosMaze = mousePosMaze;
+            if ((Map.Pos.x != Map.PrevPos.x) || (Map.Pos.y != Map.PrevPos.y)) {
+                Map.PrevPos = Map.Pos;
 
-                if (MouseInfo.Pressed[SDL_BUTTON_LEFT]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                if (MouseState.Pressed[SDL_BUTTON_LEFT]) {
+                    Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
                     madeChanges = true;
-                } else if (MouseInfo.Pressed[SDL_BUTTON_RIGHT]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -Stroke.Strength, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                } else if (MouseState.Pressed[SDL_BUTTON_RIGHT]) {
+                    Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
                     madeChanges = true;
                 }
                 if (Keystate[Keybinds.HardBrush]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, GridCell.MaxVal, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                    Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Map.MaxVal, Tool.Radius, Map.MaxVal, Map.MinVal);
                     madeChanges = true;
                 }
                 if (Keystate[Keybinds.HardErase]) {
-                    grid = brushGrid(grid, MouseInfo.PosR.y / GridCell.Size, MouseInfo.PosR.x / GridCell.Size, -GridCell.MaxVal, Stroke.Radius, GridCell.MaxVal, GridCell.MinVal);
+                    Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Map.MaxVal, Tool.Radius, Map.MaxVal, Map.MinVal);
                     madeChanges = true;
                 }
             }
 
             t += dt;
             accumulator -= dt;
-            MouseInfo.Motion = false;
+            MouseState.Motion = false;
         }
         if (!running) {break;}
 
@@ -359,18 +286,48 @@ int main(int argc, char* args[]) {
             madeChanges = false;
             Window.clear();
 
-            for (unsigned long int i = 0; i < grid.size(); i++) {
-                for (unsigned long int j = 0; j < grid.at(i).size(); j++) {
-                    const unsigned char shade = 255 - btils::map<double, unsigned char>(grid.at(i).at(j), GridCell.MinVal, GridCell.MaxVal, 0, 255);
-                    Window.fillRectangle(-Window.getW_2() + j * GridCell.Size, Window.getH_2() - i * GridCell.Size, GridCell.Size, GridCell.Size, {shade, shade, shade, 255});
-                    Window.drawRectangle(-Window.getW_2() + j * GridCell.Size, Window.getH_2() - i * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_LIGHT_GRAY]);
+            // Background
+            for (int i = 0; i < Window.getH() / tileSize + 1; i++) {
+                for (int j = 0; j < Window.getW() / tileSize; j++) {
+                    const SDL_Rect tileFrame = {-Window.getW_2() + j * tileSize, Window.getH_2() + (int)(tileSize * 0.375) - i * tileSize, tileSize, tileSize};
+                    Window.renderTexture(tile, tileFrame);
                 }
             }
-            Window.fillRectangle(-Window.getW_2() + start.second * GridCell.Size, Window.getH_2() - start.first * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_TEAL]);
-            Window.fillRectangle(-Window.getW_2() +  goal.second * GridCell.Size, Window.getH_2() -  goal.first * GridCell.Size, GridCell.Size, GridCell.Size, PresetColors[COLOR_MAROON]);
 
-            for (unsigned long int i = 1; i < pathNodes.size(); i++) {
-                Window.drawLine(-Window.getW_2() + GridCell.Size / 2 + pathNodes.at(i - 1).second * GridCell.Size, Window.getH_2() - GridCell.Size / 2 - pathNodes.at(i - 1).first  * GridCell.Size, -Window.getW_2() + GridCell.Size / 2 + pathNodes.at(i).second * GridCell.Size, Window.getH_2() - GridCell.Size / 2 - pathNodes.at(i).first * GridCell.Size, PresetColors[COLOR_LIME]);
+            // Frame surrounding the grid
+            Window.fillRectangle(-Window.getW_2() + 52, Window.getH_2() - 52, 760, 616, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 57, Window.getH_2() - 57, 750, 606, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 67, Window.getH_2() - 67, 730, 586, PresetColors[COLOR_DARK_GRAY]);
+
+            // Sidebar frame
+            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 10, 20, 700, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 1249, Window.getH_2() - 10, 20, 700, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 10, 396, 20, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 184, 396, 15, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 470, 396, 15, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 689, 396, 20, PresetColors[COLOR_DARK_GRAY]);
+
+            Window.fillRectangle(-Window.getW_2() + 874, Window.getH_2() - 15, 20, 700, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 1254, Window.getH_2() - 15, 20, 700, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 15, 386, 20, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 189, 386, 15, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 475, 386, 15, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 694, 386, 20, PresetColors[COLOR_LIGHT_GRAY]);
+
+            // Grid
+            for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
+                for (unsigned long int j = 0; j < Map.Grid.at(i).size(); j++) {
+                    const unsigned char shade = 255 - btils::map<double, unsigned char>(Map.Grid.at(i).at(j), Map.MinVal, Map.MaxVal, 0, 255);
+                    Window.fillRectangle(-Window.getW_2() + j * Map.CellSize + Map.Offset.x, Window.getH_2() - i * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, {shade, shade, shade, 255});
+                    Window.drawRectangle(-Window.getW_2() + j * Map.CellSize + Map.Offset.x, Window.getH_2() - i * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_LIGHT_GRAY]);
+                }
+            }
+
+            // Path
+            Window.fillRectangle(-Window.getW_2() + Map.Start.second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.Start.first * Map.CellSize - Map.Offset.x, Map.CellSize, Map.CellSize, PresetColors[COLOR_TEAL]);
+            Window.fillRectangle(-Window.getW_2() +  Map.Goal.second * Map.CellSize + Map.Offset.y, Window.getH_2() -  Map.Goal.first * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_MAROON]);
+            for (unsigned long int i = 1; i < Pathfinder.Nodes.size(); i++) {
+                Window.drawLine(-Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i - 1).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i - 1).first  * Map.CellSize - Map.Offset.y, -Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i).first * Map.CellSize - Map.Offset.y, PresetColors[COLOR_LIME]);
             }
 
             Window.show();
