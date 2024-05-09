@@ -63,6 +63,7 @@ class RenderWindow {
         void renderTexture(SDL_Texture* texture, const SDL_Rect &src, const SDL_Rect &dst, const double &angle, const SDL_Point &center, const SDL_RendererFlip &flip);
         void renderTexture(const Texture &texture, const SDL_Rect &dst);
         void renderTexture(const Texture &texture, const SDL_Point &pos);
+        void renderTexture(const Texture &texture, const int &x, const int &y);
 
         void renderText(TTF_Font *font, const char16_t* text, const SDL_Point &pos, const Uint32 wrapWidth = 0, const SDL_Color &color = PresetColors[COLOR_WHITE]);
 };

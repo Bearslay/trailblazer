@@ -200,6 +200,10 @@ void RenderWindow::renderTexture(const Texture &texture, const SDL_Point &pos) {
     const SDL_Point center = texture.getCenter();
     SDL_RenderCopyEx(Renderer, texture.getTexture(), &src, &dst, -texture.getAngle() * 180 / M_PI, &center, texture.getFlip());
 }
+void RenderWindow::renderTexture(const Texture &texture, const int &x, const int &y) {
+    const SDL_Point pos = {x, y};
+    renderTexture(texture, pos);
+}
 
 void RenderWindow::renderText(TTF_Font *font, const char16_t* text, const SDL_Point &pos, const Uint32 wrapWidth, const SDL_Color &color) {
     SDL_Surface *surface = TTF_RenderUNICODE_Blended_Wrapped(font, (Uint16*)text, color, wrapWidth);
