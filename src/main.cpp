@@ -11,7 +11,7 @@
 
 template <typename ArithType> std::u16string to_u16string(const ArithType &input) {
     static_assert(std::is_arithmetic<ArithType>::value, "ArithType must be an arithmetic type");
-    std::string str = std::to_string(input);
+    std::string str = btils::toString(input);
     return {str.begin(), str.end()};
 }
 
@@ -54,9 +54,13 @@ int main(int argc, char* args[]) {
     const Uint8 *Keystate = SDL_GetKeyboardState(NULL);
 
     TTF_Font *font = TTF_OpenFont("dev/fonts/GNU-Unifont.ttf", 30);
+
     Texture tile(Window.loadTexture("dev/png/tile.png"), {32, 32}, {0, 0, 64, 64});
     tile.setMods({64, 64, 64, 255});
     const int tileSize = 64;
+
+    Texture arrowButton(Window.loadTexture("dev/png/btn_arrow.png"), {16, 16}, {0, 0, 32, 32});
+    const int arrowButtonSize = 32;
 
     struct {
         SDL_Point PosC = {0, 0};
@@ -92,11 +96,11 @@ int main(int argc, char* args[]) {
     double accumulator = 0.0;
 
     struct {
-        double Strength = 1.0;
-        double StrengthMax = 5.0;
+        double Strength = 10.0;
+        double StrengthMax = 100.0;
         double StrengthMin = 1.0;
         int Radius = 0;
-        int RadiusMax = 5;
+        int RadiusMax = 15;
         int RadiusMin = 0;
     } Tool;
 
@@ -104,10 +108,10 @@ int main(int argc, char* args[]) {
         std::vector<std::vector<double>> Grid;
         
         const std::vector<int> Sizes = {1, 2, 3, 4, 6, 8, 9, 12, 16, 18, 24, 36, 48, 72, 144};
-        int CellSize = 9;
+        int CellSize = 6;
         SDL_Point Dims = {720 / CellSize, 576 / CellSize};
         
-        double MaxVal = 20.0;
+        double MaxVal = 100.0;
         double MinVal = 0.0;
         
         std::pair<unsigned long int, unsigned long int> Start = std::make_pair(0, 0), Goal = std::make_pair(Dims.y - 1, Dims.x - 1);
@@ -124,10 +128,10 @@ int main(int argc, char* args[]) {
 
     struct {
         std::vector<std::pair<unsigned long int, unsigned long int>> Nodes;
-        double MaxUp = 2.0, MaxDown = 3.0;
+        double MaxUp = 20.0, MaxDown = 25.0;
     } Pathfinder;
 
-    std::u16string asd = u"blah" + to_u16string<int>(156);
+    std::u16string dummyString;
 
     bool running = true, madeChanges = true;
     while (running) {
@@ -175,10 +179,10 @@ int main(int argc, char* args[]) {
                                 }
                             }
                             else if (Keystate[Keybinds.Pathfind]) {
-                                madeChanges = true;
                                 Pathfinder.Nodes = AStar.euclidean(Map.Grid, Map.Start, Map.Goal, Pathfinder.MaxUp, Pathfinder.MaxDown, ASTAR_MOVE_NOBOUND);
-                                if (Pathfinder.Nodes.size() <= 1) {std::cout << "[Pathfinding] No path found";}
+                                if (Pathfinder.Nodes.size() <= 1) {std::cout << "[Pathfinding] No path found\n";}
                                 else {std::cout << "[Path] Path found\n";}
+                                madeChanges = true;
                             }
                             else if (Keystate[Keybinds.ClearMaze]) {
                                 for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
@@ -211,21 +215,25 @@ int main(int argc, char* args[]) {
                                 Tool.Radius += 1.0;
                                 if (Tool.Radius > Tool.RadiusMax) {Tool.Radius = Tool.RadiusMax;}
                                 std::cout << "[Tool] Increased radius - now " << Tool.Radius << "\n";
+                                madeChanges = true;
                             }
                             else if (Keystate[SDL_SCANCODE_W]) {
                                 Tool.Radius -= 1.0;
                                 if (Tool.Radius < Tool.RadiusMin) {Tool.Radius = Tool.RadiusMin;}
                                 std::cout << "[Tool] Decreased radius - now " << Tool.Radius << "\n";
+                                madeChanges = true;
                             }
                             else if (Keystate[SDL_SCANCODE_A]) {
                                 Tool.Strength += 1.0;
                                 if (Tool.Strength > Tool.StrengthMax) {Tool.Strength = Tool.StrengthMax;}
                                 std::cout << "[Tool] Increased strength - now " << Tool.Strength << "\n";
+                                madeChanges = true;
                             }
                             else if (Keystate[SDL_SCANCODE_S]) {
                                 Tool.Strength -= 1.0;
                                 if (Tool.Strength < Tool.StrengthMin) {Tool.Strength = Tool.StrengthMin;}
                                 std::cout << "[Tool] Decreased strength - now " << Tool.Strength << "\n";
+                                madeChanges = true;
                             }
                         }
                         break;
@@ -295,31 +303,79 @@ int main(int argc, char* args[]) {
             }
 
             // Frame surrounding the grid
-            Window.fillRectangle(-Window.getW_2() + 52, Window.getH_2() - 52, 760, 616, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 57, Window.getH_2() - 57, 750, 606, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 67, Window.getH_2() - 67, 730, 586, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-588, 308, 760, 616, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-583, 303, 750, 606, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-573, 293, 730, 586, PresetColors[COLOR_DARK_GRAY]);
 
             // Sidebar frame
-            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 10, 20, 700, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 1249, Window.getH_2() - 10, 20, 700, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 10, 396, 20, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 184, 396, 15, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 470, 396, 15, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 875, Window.getH_2() - 689, 396, 20, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235,  349,  20, 698, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(609,  349,  20, 698, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235,  349, 394,  20, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235,  176, 394,  15, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235, -110, 394,  15, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235, -329, 394,  20, PresetColors[COLOR_DARK_GRAY]);
 
-            Window.fillRectangle(-Window.getW_2() + 874, Window.getH_2() - 15, 20, 700, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 1254, Window.getH_2() - 15, 20, 700, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 15, 386, 20, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 189, 386, 15, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 475, 386, 15, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(-Window.getW_2() + 879, Window.getH_2() - 694, 386, 20, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240,  344,  10, 688, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(614,  344,  10, 688, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240,  344, 384,  10, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240,  171, 384,   5, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240, -115, 384,   5, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240, -334, 384,  10, PresetColors[COLOR_LIGHT_GRAY]);
+
+            // Button outlines
+            Window.fillRectangle(328, 325, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(328, 325,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(328, 285, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(532, 325,   5, 45, PresetColors[COLOR_WHITE]);
+
+            Window.fillRectangle(343, 275, 179,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(343, 275,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(343, 235, 179,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(517, 275,   5, 45, PresetColors[COLOR_WHITE]);
+
+            Window.fillRectangle(350, 225, 164,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(350, 225,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(350, 185, 164,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(509, 225,   5, 45, PresetColors[COLOR_WHITE]);
+
+            // Pathfinding text
+            Window.renderText(font, u"Generate Path", {432, 303}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Place Start", {432, 253}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Place Goal", {432, 203}, 0, PresetColors[COLOR_WHITE]);
+
+            // Grid Settings text
+            Window.renderText(font, u"Grid Settings:", {373, 114}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Cell Size: " + to_u16string<int>(Map.CellSize);
+            Window.renderText(font, dummyString.c_str(), {373, 63}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Min:  " + to_u16string<double>(Map.MinVal);
+            Window.renderText(font, dummyString.c_str(), {373, -5}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Max:  " + to_u16string<double>(Map.MaxVal);
+            Window.renderText(font, dummyString.c_str(), {373, -72}, 0, PresetColors[COLOR_WHITE]);
+
+            // Tool Settings text
+            Window.renderText(font, u"Tool Settings:", {373,  -173}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Size:      " + to_u16string<int>(Tool.Radius);
+            Window.renderText(font, dummyString.c_str(), {373,  -224}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Strength:  " + to_u16string<int>(Tool.Strength);
+            Window.renderText(font, dummyString.c_str(), {373,  -291}, 0, PresetColors[COLOR_WHITE]);
+
+            // Increment/Decrement buttons
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509,   77, arrowButtonSize, arrowButtonSize});
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509,   10, arrowButtonSize, arrowButtonSize});
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509,  -57, arrowButtonSize, arrowButtonSize});
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509, -210, arrowButtonSize, arrowButtonSize});
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509, -277, arrowButtonSize, arrowButtonSize});
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557,   77, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557,   10, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557,  -57, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557, -210, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
+            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557, -277, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
 
             // Grid
             for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
                 for (unsigned long int j = 0; j < Map.Grid.at(i).size(); j++) {
                     const unsigned char shade = 255 - btils::map<double, unsigned char>(Map.Grid.at(i).at(j), Map.MinVal, Map.MaxVal, 0, 255);
                     Window.fillRectangle(-Window.getW_2() + j * Map.CellSize + Map.Offset.x, Window.getH_2() - i * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, {shade, shade, shade, 255});
-                    Window.drawRectangle(-Window.getW_2() + j * Map.CellSize + Map.Offset.x, Window.getH_2() - i * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_LIGHT_GRAY]);
                 }
             }
 
