@@ -4,6 +4,7 @@
 #include <cmath>
 #include <vector>
 #include <type_traits>
+#include <string>
 
 /* pi/8 rad or 22.5 deg */
 #define C_PI_8     0.39269908169872415481
@@ -210,6 +211,23 @@ namespace btils {
         }
         return -1;
     }
+
+    template <typename ArithType> std::string toString(const ArithType &input) {
+        static_assert(std::is_arithmetic<ArithType>::value, "ArithType must be an arithmetic type");
+
+        if (std::is_integral<ArithType>::value) {return std::to_string(input);}
+
+        std::string output = std::to_string(input);
+        while (output.back() == '0') {
+            output.pop_back();
+            if (output.back() == '.') {
+                output.pop_back();
+                break;
+            }
+        }
+        return output;
+    }
+    template <typename ArithType> std::string toString(const ArithType &input, const bool alwaysIncludeSign) {return (alwaysIncludeSign && input >= 0 ? "+" : "") + toString(input);}
 
 //     class UnitInterval {
 //         private:
