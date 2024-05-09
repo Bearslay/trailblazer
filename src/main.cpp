@@ -9,12 +9,6 @@
 #include "Utilities.hpp"
 #include "AStar.hpp"
 
-template <typename ArithType> std::u16string to_u16string(const ArithType &input) {
-    static_assert(std::is_arithmetic<ArithType>::value, "ArithType must be an arithmetic type");
-    std::string str = btils::toString(input);
-    return {str.begin(), str.end()};
-}
-
 std::vector<std::vector<double>> brushGrid(const std::vector<std::vector<double>> &grid, const int &row, const int &col, const double &strength, const int &radius, const double &maxVal, const double &minVal = 0.0) {
     if (row < 0 || row >= (int)grid.size() || col < 0 || col >= (int)grid.at(row).size()) {return grid;}
     std::vector<std::vector<double>> output = grid;
@@ -116,7 +110,7 @@ int main(int argc, char* args[]) {
         
         std::pair<unsigned long int, unsigned long int> Start = std::make_pair(0, 0), Goal = std::make_pair(Dims.y - 1, Dims.x - 1);
         SDL_Point Pos = {0, 0}, PrevPos = Pos;
-        SDL_Point Offset = {72, 72};
+        SDL_Point Offset = {72, 40};
     } Map;
 
     for (int i = 0; i < Map.Dims.y; i++) {
@@ -302,74 +296,96 @@ int main(int argc, char* args[]) {
                 }
             }
 
+            const SDL_Point tileOffset = {Window.getW() % tileSize, Window.getH() % tileSize};
+            for (int i = -1; i < Window.getW() / tileSize + 1; i++) {
+                for (int j = -1; j < Window.getH() / tileSize + 1; j++) {
+                    const SDL_Point p = {-Window.getW_2() + i * tileSize + tile.getCenter().x + tileOffset.x / 2, Window.getH_2() - j * tileSize - tile.getCenter().y - tileOffset.y / 2};
+                    Window.renderTexture(tile, p);
+                }
+            }
+
             // Frame surrounding the grid
-            Window.fillRectangle(-588, 308, 760, 616, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(-583, 303, 750, 606, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(-573, 293, 730, 586, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-588, 340, 760, 616, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(-583, 335, 750, 606, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(-573, 325, 730, 586, PresetColors[COLOR_DARK_GRAY]);
 
             // Sidebar frame
-            Window.fillRectangle(235,  349,  20, 698, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(609,  349,  20, 698, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(235,  349, 394,  20, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(235,  176, 394,  15, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(235, -110, 394,  15, PresetColors[COLOR_DARK_GRAY]);
-            Window.fillRectangle(235, -329, 394,  20, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235,  322,  20, 644, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(609,  322,  20, 644, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235,  322, 394,  20, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235,  133, 394,  15, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235, -118, 394,  15, PresetColors[COLOR_DARK_GRAY]);
+            Window.fillRectangle(235, -302, 394,  20, PresetColors[COLOR_DARK_GRAY]);
 
-            Window.fillRectangle(240,  344,  10, 688, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(614,  344,  10, 688, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(240,  344, 384,  10, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(240,  171, 384,   5, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(240, -115, 384,   5, PresetColors[COLOR_LIGHT_GRAY]);
-            Window.fillRectangle(240, -334, 384,  10, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240,  317,  10, 634, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(614,  317,  10, 634, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240,  317, 384,  10, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240,  128, 384,   5, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240, -123, 384,   5, PresetColors[COLOR_LIGHT_GRAY]);
+            Window.fillRectangle(240, -307, 384,  10, PresetColors[COLOR_LIGHT_GRAY]);
 
             // Button outlines
-            Window.fillRectangle(328, 325, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(328, 325,   5, 45, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(328, 285, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(532, 325,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-556, -295, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-556, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-556, -335, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-352, -295,   5, 45, PresetColors[COLOR_WHITE]);
 
-            Window.fillRectangle(343, 275, 179,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(343, 275,   5, 45, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(343, 235, 179,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(517, 275,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-310, -295, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-310, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-310, -335, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-106, -295,   5, 45, PresetColors[COLOR_WHITE]);
 
-            Window.fillRectangle(350, 225, 164,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(350, 225,   5, 45, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(350, 185, 164,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(509, 225,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-64, -295, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-64, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-64, -335, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(140, -295,   5, 45, PresetColors[COLOR_WHITE]);
 
             // Pathfinding text
-            Window.renderText(font, u"Generate Path", {432, 303}, 0, PresetColors[COLOR_WHITE]);
-            Window.renderText(font, u"Place Start", {432, 253}, 0, PresetColors[COLOR_WHITE]);
-            Window.renderText(font, u"Place Goal", {432, 203}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Generate Path", {-453, -318}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Place Start", {-207, -318}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Place Goal", {40, -318}, 0, PresetColors[COLOR_WHITE]);
+
+            // Path Settings text
+            Window.renderText(font, u"Path Settings:", {373, 279}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Up:   " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Pathfinder.MaxUp, 4, 3, false));
+            Window.renderText(font, dummyString.c_str(), {373, 232}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Down: " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Pathfinder.MaxDown, 4, 3, false));
+            Window.renderText(font, dummyString.c_str(), {373, 165}, 0, PresetColors[COLOR_WHITE]);
 
             // Grid Settings text
-            Window.renderText(font, u"Grid Settings:", {373, 114}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Cell Size: " + to_u16string<int>(Map.CellSize);
-            Window.renderText(font, dummyString.c_str(), {373, 63}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Min:  " + to_u16string<double>(Map.MinVal);
-            Window.renderText(font, dummyString.c_str(), {373, -5}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Max:  " + to_u16string<double>(Map.MaxVal);
-            Window.renderText(font, dummyString.c_str(), {373, -72}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Grid Settings:", {373, 95}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Cell Size: " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Map.CellSize, 3, false, false));
+            Window.renderText(font, dummyString.c_str(), {373, 48}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Min:  " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Map.MinVal, 4, 3, false));
+            Window.renderText(font, dummyString.c_str(), {373, -20}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Max:  " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Map.MaxVal, 4, 3, false));
+            Window.renderText(font, dummyString.c_str(), {373, -87}, 0, PresetColors[COLOR_WHITE]);
 
             // Tool Settings text
-            Window.renderText(font, u"Tool Settings:", {373,  -173}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Size:      " + to_u16string<int>(Tool.Radius);
-            Window.renderText(font, dummyString.c_str(), {373,  -224}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Strength:  " + to_u16string<int>(Tool.Strength);
-            Window.renderText(font, dummyString.c_str(), {373,  -291}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Tool Settings:", {373, -157}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Size:      " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Tool.Radius, 3, false, false));
+            Window.renderText(font, dummyString.c_str(), {373, -204}, 0, PresetColors[COLOR_WHITE]);
+            dummyString = u"Strength:  " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Tool.Strength, 3, false, false));
+            Window.renderText(font, dummyString.c_str(), {373, -271}, 0, PresetColors[COLOR_WHITE]);
 
             // Increment/Decrement buttons
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509,   77, arrowButtonSize, arrowButtonSize});
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509,   10, arrowButtonSize, arrowButtonSize});
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509,  -57, arrowButtonSize, arrowButtonSize});
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509, -210, arrowButtonSize, arrowButtonSize});
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {509, -277, arrowButtonSize, arrowButtonSize});
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557,   77, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557,   10, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557,  -57, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557, -210, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
-            Window.renderTexture(arrowButton.getTexture(), arrowButton.getFrame(), {557, -277, arrowButtonSize, arrowButtonSize}, 180, {arrowButtonSize / 2, arrowButtonSize / 2}, SDL_FLIP_NONE);
+            arrowButton.setAngle(0);
+            Window.renderTexture(arrowButton, 509,  247);
+            Window.renderTexture(arrowButton, 509,  180);
+            Window.renderTexture(arrowButton, 509,   63);
+            Window.renderTexture(arrowButton, 509,   -4);
+            Window.renderTexture(arrowButton, 509,  -71);
+            Window.renderTexture(arrowButton, 509, -188);
+            Window.renderTexture(arrowButton, 509, -255);
+
+            arrowButton.setAngle(C_PI);
+            Window.renderTexture(arrowButton, 557,  247);
+            Window.renderTexture(arrowButton, 557,  180);
+            Window.renderTexture(arrowButton, 557,   63);
+            Window.renderTexture(arrowButton, 557,   -4);
+            Window.renderTexture(arrowButton, 557,  -71);
+            Window.renderTexture(arrowButton, 557, -188);
+            Window.renderTexture(arrowButton, 557, -255);
 
             // Grid
             for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
@@ -380,8 +396,8 @@ int main(int argc, char* args[]) {
             }
 
             // Path
-            Window.fillRectangle(-Window.getW_2() + Map.Start.second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.Start.first * Map.CellSize - Map.Offset.x, Map.CellSize, Map.CellSize, PresetColors[COLOR_TEAL]);
-            Window.fillRectangle(-Window.getW_2() +  Map.Goal.second * Map.CellSize + Map.Offset.y, Window.getH_2() -  Map.Goal.first * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_MAROON]);
+            Window.fillRectangle(-Window.getW_2() + Map.Start.second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.Start.first * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_TEAL]);
+            Window.fillRectangle(-Window.getW_2() +  Map.Goal.second * Map.CellSize + Map.Offset.x, Window.getH_2() -  Map.Goal.first * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_MAROON]);
             for (unsigned long int i = 1; i < Pathfinder.Nodes.size(); i++) {
                 Window.drawLine(-Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i - 1).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i - 1).first  * Map.CellSize - Map.Offset.y, -Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i).first * Map.CellSize - Map.Offset.y, PresetColors[COLOR_LIME]);
             }
