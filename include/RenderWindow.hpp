@@ -61,6 +61,13 @@ class RenderWindow {
 
         void drawPixel(const int &x, const int &y, const SDL_Color &color = PresetColors[COLOR_WHITE]);
         void drawLine(const int &x1, const int &y1, const int &x2, const int &y2, const SDL_Color &color = PresetColors[COLOR_WHITE]);
+        /** Draw a line with extra pixels drawn in if specified
+         * @param x1 Starting x-position
+         * @param y1 Starting y-position
+         * @param x2 Ending x-position
+         * @param y2 Ending y-position
+         * @param overlapType The kind of overlapping to do; either LINE_OVERLAP_NONE, LINE_OVERLAP_MAJOR, LINE_OVERLAP_MINOR, LINE_OVERLAP_BOTH
+         * @param color The SDL_Color to use when drawing the line    */
         void drawLineOverlap(const int &x1, const int &y1, const int &x2, const int &y2, const unsigned char overlapType = LINE_OVERLAP_NONE, const SDL_Color &color = PresetColors[COLOR_WHITE]);
         void drawThickLine(const int x1, const int y1, const int x2, const int y2, const int thickness, const unsigned char thicknessMode = LINE_THICKNESS_MIDDLE, const SDL_Color &color = PresetColors[COLOR_WHITE]);
         void drawRectangle(const int &x, const int &y, const int &w, const int &h, const SDL_Color &color = PresetColors[COLOR_WHITE]);

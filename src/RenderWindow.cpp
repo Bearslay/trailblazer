@@ -211,13 +211,13 @@ void RenderWindow::renderText(TTF_Font *font, const char16_t* text, const SDL_Po
     SDL_FreeSurface(surface);
 }
 
-/**
- * Draws a line from aXStart/aYStart to aXEnd/aYEnd including both ends
- * @param aOverlap One of LINE_OVERLAP_NONE, LINE_OVERLAP_MAJOR, LINE_OVERLAP_MINOR, LINE_OVERLAP_BOTH
- */
 void RenderWindow::drawLineOverlap(const int &x1, const int &y1, const int &x2, const int &y2, const unsigned char overlapType, const SDL_Color &color) {
     if (x1 == x2 || y1 == y2) {
         RenderWindow::fillRectangle(x1, x2, std::abs(x2 - x1), std::abs(y2 - y1), color);
+        return;
+    }
+    if (overlapType == LINE_OVERLAP_NONE) {
+        RenderWindow::drawLine(x1, y1, x2, y2, color);
         return;
     }
     int dx = x2 - x1, dy = y2 - y1;
@@ -241,9 +241,9 @@ void RenderWindow::drawLineOverlap(const int &x1, const int &y1, const int &x2, 
         while (x != x2) {
             x += sx;
             if (error >= 0) {
-                if (overlapType & LINE_OVERLAP_MAJOR) {RenderWindow::drawPixel(x, y, color);}
+                if (overlapType == LINE_OVERLAP_MAJOR || overlapType == LINE_OVERLAP_BOTH) {RenderWindow::drawPixel(x, y, color);}
                 y += sy;
-                if (overlapType & LINE_OVERLAP_MINOR) {RenderWindow::drawPixel(x - sx, y, color);}
+                if (overlapType == LINE_OVERLAP_MINOR || overlapType == LINE_OVERLAP_BOTH) {RenderWindow::drawPixel(x - sx, y, color);}
                 error -= dx2;
             }
             error += dy2;
@@ -255,9 +255,9 @@ void RenderWindow::drawLineOverlap(const int &x1, const int &y1, const int &x2, 
     while (y != y2) {
         y += sy;
         if (error >= 0) {
-            if (overlapType & LINE_OVERLAP_MAJOR) {RenderWindow::drawPixel(x, y, color);}
+            if (overlapType == LINE_OVERLAP_MAJOR || overlapType == LINE_OVERLAP_BOTH) {RenderWindow::drawPixel(x, y, color);}
             x += sx;
-            if (overlapType & LINE_OVERLAP_MINOR) {RenderWindow::drawPixel(x, y - sy, color);}
+            if (overlapType == LINE_OVERLAP_MINOR || overlapType == LINE_OVERLAP_BOTH) {RenderWindow::drawPixel(x, y - sy, color);}
             error -= dy2;
         }
         error += dx2;
