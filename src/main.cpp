@@ -9,6 +9,8 @@
 #include "Utilities.hpp"
 #include "AStar.hpp"
 
+#include "CursorBox.hpp"
+
 std::vector<std::vector<double>> brushGrid(const std::vector<std::vector<double>> &grid, const int &row, const int &col, const double &strength, const int &radius, const double &maxVal, const double &minVal = 0.0) {
     if (row < 0 || row >= (int)grid.size() || col < 0 || col >= (int)grid.at(row).size()) {return grid;}
     std::vector<std::vector<double>> output = grid;
@@ -54,20 +56,8 @@ int main(int argc, char* args[]) {
     const int tileSize = 64;
 
     Texture arrowButton(Window.loadTexture("dev/png/btn_arrow.png"), {16, 16}, {0, 0, 32, 32});
-    const int arrowButtonSize = 32;
 
-    struct {
-        SDL_Point PosC = {0, 0};
-        SDL_Point PosR = {0, 0};
-        SDL_Point Rel = {0, 0};
-        double Sensitivity = 10;
-
-        bool Motion = false;
-        bool Released = true;
-        bool Captured = false;
-
-        bool Pressed[5] = {false, false, false, false, false};
-    } MouseState;
+    MouseState mstate;
 
     struct {
         int Quit = SDL_SCANCODE_ESCAPE;
@@ -142,34 +132,34 @@ int main(int argc, char* args[]) {
                         running = false;
                         break;
                     case SDL_MOUSEMOTION:
-                        MouseState.Motion = true;
-                        SDL_GetMouseState(&MouseState.PosR.x, &MouseState.PosR.y);
-                        MouseState.PosC.x = MouseState.PosR.x - Window.getW_2();
-                        MouseState.PosC.y = Window.getH() - MouseState.PosR.y - Window.getH_2();
+                        mstate.Motion = true;
+                        SDL_GetMouseState(&mstate.PosR.x, &mstate.PosR.y);
+                        mstate.PosC.x = mstate.PosR.x - Window.getW_2();
+                        mstate.PosC.y = Window.getH() - mstate.PosR.y - Window.getH_2();
 
-                        if (!MouseState.Released) {
-                            MouseState.Rel.x = Event.motion.xrel;
-                            MouseState.Rel.y = -Event.motion.yrel;
+                        if (!mstate.Released) {
+                            mstate.Rel.x = Event.motion.xrel;
+                            mstate.Rel.y = -Event.motion.yrel;
                         } else {
-                            MouseState.Released = false;
-                            MouseState.Rel = {0, 0};
+                            mstate.Released = false;
+                            mstate.Rel = {0, 0};
                         }
 
-                        Map.Pos = {(MouseState.PosR.x - Map.Offset.x) / Map.CellSize, (MouseState.PosR.y - Map.Offset.y) / Map.CellSize};
+                        Map.Pos = {(mstate.PosR.x - Map.Offset.x) / Map.CellSize, (mstate.PosR.y - Map.Offset.y) / Map.CellSize};
                         break;
                     case SDL_KEYDOWN:
                         if (!Event.key.repeat) {
                             if (Keystate[Keybinds.ToggleCapture]) {
-                                MouseState.Captured = !MouseState.Captured;
-                                if (MouseState.Captured) {
+                                mstate.Captured = !mstate.Captured;
+                                if (mstate.Captured) {
                                     SDL_SetRelativeMouseMode(SDL_TRUE);
-                                    MouseState.Released = true;
-                                    MouseState.Rel = {0, 0};
+                                    mstate.Released = true;
+                                    mstate.Rel = {0, 0};
                                 } else {
                                     SDL_SetRelativeMouseMode(SDL_FALSE);
                                     Window.centerMouse();
-                                    MouseState.PosC = {0, 0};
-                                    MouseState.PosR = {0, 0};
+                                    mstate.PosC = {0, 0};
+                                    mstate.PosR = {0, 0};
                                 }
                             }
                             else if (Keystate[Keybinds.Pathfind]) {
@@ -235,7 +225,7 @@ int main(int argc, char* args[]) {
                         Window.handleEvent(Event.window);
                         break;
                     case SDL_MOUSEBUTTONDOWN:
-                        MouseState.Pressed[Event.button.button] = true;
+                        mstate.Pressed[Event.button.button] = true;
                         switch (Event.button.button) {
                             case SDL_BUTTON_LEFT:
                                 Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
@@ -248,7 +238,7 @@ int main(int argc, char* args[]) {
                         }
                         break;
                     case SDL_MOUSEBUTTONUP:
-                        MouseState.Pressed[Event.button.button] = false;
+                        mstate.Pressed[Event.button.button] = false;
                         break;
                 }
                 if (!running) {break;}
@@ -261,10 +251,10 @@ int main(int argc, char* args[]) {
             if ((Map.Pos.x != Map.PrevPos.x) || (Map.Pos.y != Map.PrevPos.y)) {
                 Map.PrevPos = Map.Pos;
 
-                if (MouseState.Pressed[SDL_BUTTON_LEFT]) {
+                if (mstate.Pressed[SDL_BUTTON_LEFT]) {
                     Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
                     madeChanges = true;
-                } else if (MouseState.Pressed[SDL_BUTTON_RIGHT]) {
+                } else if (mstate.Pressed[SDL_BUTTON_RIGHT]) {
                     Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
                     madeChanges = true;
                 }
@@ -280,7 +270,7 @@ int main(int argc, char* args[]) {
 
             t += dt;
             accumulator -= dt;
-            MouseState.Motion = false;
+            mstate.Motion = false;
         }
         if (!running) {break;}
 
@@ -401,8 +391,6 @@ int main(int argc, char* args[]) {
             for (unsigned long int i = 1; i < Pathfinder.Nodes.size(); i++) {
                 Window.drawLine(-Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i - 1).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i - 1).first  * Map.CellSize - Map.Offset.y, -Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i).first * Map.CellSize - Map.Offset.y, PresetColors[COLOR_LIME]);
             }
-
-            Window.drawThickLine(0, 0, 250, 300, 10, LINE_THICKNESS_MIDDLE, PresetColors[COLOR_RED]);
 
             Window.show();
         }
