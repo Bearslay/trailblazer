@@ -9,6 +9,15 @@
 #include "PresetColors.hpp"
 #include "Texture.hpp"
 
+#define LINE_OVERLAP_NONE  0x00    // No line overlap, like in standard Bresenham
+#define LINE_OVERLAP_MAJOR 0x01    // Overlap - first go major then minor direction. Pixel is drawn as extension after actual line
+#define LINE_OVERLAP_MINOR 0x02    // Overlap - first go minor then major direction. Pixel is drawn as extension before next line
+#define LINE_OVERLAP_BOTH  0x03    // Overlap - both
+
+#define LINE_THICKNESS_MIDDLE 0                 // Start point is on the line at center of the thick line
+#define LINE_THICKNESS_DRAW_CLOCKWISE 1         // Start point is on the counter clockwise border line
+#define LINE_THICKNESS_DRAW_COUNTERCLOCKWISE 2  // Start point is on the clockwise border line
+
 class RenderWindow {
     private:
         SDL_Window* Window;
@@ -52,7 +61,8 @@ class RenderWindow {
 
         void drawPixel(const int &x, const int &y, const SDL_Color &color = PresetColors[COLOR_WHITE]);
         void drawLine(const int &x1, const int &y1, const int &x2, const int &y2, const SDL_Color &color = PresetColors[COLOR_WHITE]);
-        void drawThickLine(const int &x1, const int &y1, const int &x2, const int &y2, const int &thickness, const SDL_Color &color = PresetColors[COLOR_WHITE]);
+        void drawLineOverlap(const int &x1, const int &y1, const int &x2, const int &y2, const unsigned char overlapType = LINE_OVERLAP_NONE, const SDL_Color &color = PresetColors[COLOR_WHITE]);
+        void drawThickLine(const int x1, const int y1, const int x2, const int y2, const int thickness, const unsigned char thicknessMode = LINE_THICKNESS_MIDDLE, const SDL_Color &color = PresetColors[COLOR_WHITE]);
         void drawRectangle(const int &x, const int &y, const int &w, const int &h, const SDL_Color &color = PresetColors[COLOR_WHITE]);
         void fillRectangle(const int &x, const int &y, const int &w, const int &h, const SDL_Color &color = PresetColors[COLOR_WHITE]);
         void drawCircle(const int &x, const int &y, const int &r, const SDL_Color &color = PresetColors[COLOR_WHITE]);

@@ -402,6 +402,8 @@ int main(int argc, char* args[]) {
                 Window.drawLine(-Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i - 1).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i - 1).first  * Map.CellSize - Map.Offset.y, -Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i).first * Map.CellSize - Map.Offset.y, PresetColors[COLOR_LIME]);
             }
 
+            Window.drawThickLine(0, 0, 250, 300, 10, LINE_THICKNESS_MIDDLE, PresetColors[COLOR_RED]);
+
             Window.show();
         }
 
