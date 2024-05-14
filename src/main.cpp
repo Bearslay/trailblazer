@@ -62,12 +62,12 @@ int main(int argc, char* args[]) {
     struct {
         int Quit = SDL_SCANCODE_ESCAPE;
         int ToggleCapture = SDL_SCANCODE_F1;
-        int Pathfind = SDL_SCANCODE_1;
+        int Pathfind = SDL_SCANCODE_SPACE;
         int PlaceStart = SDL_SCANCODE_Z;
         int PlaceGoal = SDL_SCANCODE_X;
         int ClearMaze = SDL_SCANCODE_C;
-        int HardBrush = SDL_SCANCODE_F;
-        int HardErase = SDL_SCANCODE_G;
+        int HardBrush = SDL_SCANCODE_S;
+        int HardErase = SDL_SCANCODE_D;
     } Keybinds;
 
     long double t = 0.0;
@@ -83,17 +83,16 @@ int main(int argc, char* args[]) {
         double Strength = 10.0;
         double StrengthMax = 100.0;
         double StrengthMin = 1.0;
-        int Radius = 0;
-        int RadiusMax = 15;
+        int Radius = 5;
+        int RadiusMax = 50;
         int RadiusMin = 0;
     } Tool;
-
     struct {
         std::vector<std::vector<double>> Grid;
         
-        const std::vector<int> Sizes = {1, 2, 3, 4, 6, 8, 9, 12, 16, 18, 24, 36, 48, 72, 144};
-        int CellSize = 6;
-        SDL_Point Dims = {720 / CellSize, 576 / CellSize};
+        const std::vector<int> CellSizes = {1, 2, 3, 4, 6, 8, 9, 12, 16, 18, 24, 36, 48, 72, 144};
+        int SizeIndex = 4;
+        SDL_Point Dims = {720 / CellSizes[SizeIndex], 576 / CellSizes[SizeIndex]};
         
         double MaxVal = 100.0;
         double MinVal = 0.0;
@@ -102,6 +101,10 @@ int main(int argc, char* args[]) {
         SDL_Point Pos = {0, 0}, PrevPos = Pos;
         SDL_Point Offset = {72, 40};
     } Map;
+    struct {
+        std::vector<std::pair<unsigned long int, unsigned long int>> Nodes;
+        double MaxUp = 5.0, MaxDown = 10.0;
+    } Pathfinder;
 
     for (int i = 0; i < Map.Dims.y; i++) {
         Map.Grid.emplace_back();
@@ -110,11 +113,18 @@ int main(int argc, char* args[]) {
         }
     }
 
-    struct {
-        std::vector<std::pair<unsigned long int, unsigned long int>> Nodes;
-        double MaxUp = 20.0, MaxDown = 25.0;
-    } Pathfinder;
+    CursorBox map({Map.Offset.x, Map.Offset.y, 720, 576}), genPath({8, 655, 209, 45}), placeStart({225, 655, 209, 45}), placeGoal({442, 655, 209, 45}), gridReset({659, 655, 209, 45});
+    CursorBox increments[14] = {
+        CursorBox({1149, 113, 32, 32}), CursorBox({1197, 113, 32, 32}),
+        CursorBox({1149, 180, 32, 32}), CursorBox({1197, 180, 32, 32}),
+        CursorBox({1149, 297, 32, 32}), CursorBox({1197, 297, 32, 32}),
+        CursorBox({1149, 364, 32, 32}), CursorBox({1197, 364, 32, 32}),
+        CursorBox({1149, 431, 32, 32}), CursorBox({1197, 431, 32, 32}),
+        CursorBox({1149, 548, 32, 32}), CursorBox({1197, 548, 32, 32}),
+        CursorBox({1149, 615, 32, 32}), CursorBox({1197, 615, 32, 32})
+    };
 
+    int drawMode = 0;
     std::u16string dummyString;
 
     bool running = true, madeChanges = true;
@@ -145,7 +155,7 @@ int main(int argc, char* args[]) {
                             mstate.Rel = {0, 0};
                         }
 
-                        Map.Pos = {(mstate.PosR.x - Map.Offset.x) / Map.CellSize, (mstate.PosR.y - Map.Offset.y) / Map.CellSize};
+                        Map.Pos = {(mstate.PosR.x - Map.Offset.x) / Map.CellSizes[Map.SizeIndex], (mstate.PosR.y - Map.Offset.y) / Map.CellSizes[Map.SizeIndex]};
                         break;
                     case SDL_KEYDOWN:
                         if (!Event.key.repeat) {
@@ -162,63 +172,6 @@ int main(int argc, char* args[]) {
                                     mstate.PosR = {0, 0};
                                 }
                             }
-                            else if (Keystate[Keybinds.Pathfind]) {
-                                Pathfinder.Nodes = AStar.euclidean(Map.Grid, Map.Start, Map.Goal, Pathfinder.MaxUp, Pathfinder.MaxDown, ASTAR_MOVE_NOBOUND);
-                                if (Pathfinder.Nodes.size() <= 1) {std::cout << "[Pathfinding] No path found\n";}
-                                else {std::cout << "[Path] Path found\n";}
-                                madeChanges = true;
-                            }
-                            else if (Keystate[Keybinds.ClearMaze]) {
-                                for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
-                                    for (unsigned long int j = 0; j < Map.Grid.at(i).size(); j++) {
-                                        Map.Grid[i][j] = Map.MinVal;
-                                    }
-                                }
-                                std::cout << "[Grid] Grid cleared\n";
-                                madeChanges = true;
-                            }
-                            else if (Keystate[Keybinds.PlaceStart]) {
-                                Map.Start = std::make_pair(Map.Pos.y, Map.Pos.x);
-                                std::cout << "[Grid] Start moved to " << Map.Start.first << ", " << Map.Start.second << "\n";
-                                madeChanges = true;
-                            }
-                            else if (Keystate[Keybinds.PlaceGoal]) {
-                                Map.Goal = std::make_pair(Map.Pos.y, Map.Pos.x);
-                                std::cout << "[Grid] Goal moved to " << Map.Goal.first << ", " << Map.Goal.second << "\n";
-                                madeChanges = true;
-                            }
-                            else if (Keystate[Keybinds.HardBrush]) {
-                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Map.MaxVal, Tool.Radius, Map.MaxVal, Map.MinVal);
-                                madeChanges = true;
-                            }
-                            else if (Keystate[Keybinds.HardErase]) {
-                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Map.MaxVal, Tool.Radius, Map.MaxVal, Map.MinVal);
-                                madeChanges = true;
-                            }
-                            else if (Keystate[SDL_SCANCODE_Q]) {
-                                Tool.Radius += 1.0;
-                                if (Tool.Radius > Tool.RadiusMax) {Tool.Radius = Tool.RadiusMax;}
-                                std::cout << "[Tool] Increased radius - now " << Tool.Radius << "\n";
-                                madeChanges = true;
-                            }
-                            else if (Keystate[SDL_SCANCODE_W]) {
-                                Tool.Radius -= 1.0;
-                                if (Tool.Radius < Tool.RadiusMin) {Tool.Radius = Tool.RadiusMin;}
-                                std::cout << "[Tool] Decreased radius - now " << Tool.Radius << "\n";
-                                madeChanges = true;
-                            }
-                            else if (Keystate[SDL_SCANCODE_A]) {
-                                Tool.Strength += 1.0;
-                                if (Tool.Strength > Tool.StrengthMax) {Tool.Strength = Tool.StrengthMax;}
-                                std::cout << "[Tool] Increased strength - now " << Tool.Strength << "\n";
-                                madeChanges = true;
-                            }
-                            else if (Keystate[SDL_SCANCODE_S]) {
-                                Tool.Strength -= 1.0;
-                                if (Tool.Strength < Tool.StrengthMin) {Tool.Strength = Tool.StrengthMin;}
-                                std::cout << "[Tool] Decreased strength - now " << Tool.Strength << "\n";
-                                madeChanges = true;
-                            }
                         }
                         break;
                     case SDL_WINDOWEVENT:
@@ -228,12 +181,149 @@ int main(int argc, char* args[]) {
                         mstate.Pressed[Event.button.button] = true;
                         switch (Event.button.button) {
                             case SDL_BUTTON_LEFT:
-                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
-                                madeChanges = true;
+                                if (genPath.check(mstate)) {
+                                    Pathfinder.Nodes = AStar.euclidean(Map.Grid, Map.Start, Map.Goal, Pathfinder.MaxUp, Pathfinder.MaxDown, ASTAR_MOVE_NOBOUND);
+                                    if (Pathfinder.Nodes.size() <= 1) {std::cout << "[Pathfinding] No path found\n";}
+                                    else {
+                                        std::cout << "[Path] Path found\n";
+                                        madeChanges = true;
+                                    }
+                                } else if (placeStart.check(mstate)) {
+                                    drawMode = 1;
+                                } else if (placeGoal.check(mstate)) {
+                                    drawMode = 2;
+                                } else if (gridReset.check(mstate)) {
+                                    for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
+                                        for (unsigned long int j = 0; j < Map.Grid.at(i).size(); j++) {
+                                            Map.Grid[i][j] = Map.MinVal;
+                                        }
+                                    }
+                                    std::cout << "[Grid] Grid cleared\n";
+                                    madeChanges = true;
+                                } else {
+                                    for (unsigned long int i = 0; i < 14; i++) {
+                                        if (increments[i].check(mstate)) {
+                                            switch(i) {
+                                                case 0:
+                                                    Pathfinder.MaxUp += 1.0;
+                                                    std::cout << "[Path] Increased upwards mobility - now " << Pathfinder.MaxUp << "\n";
+                                                    break;
+                                                case 1:
+                                                    Pathfinder.MaxUp -= 1.0;
+                                                    if (Pathfinder.MaxUp < 0) {Pathfinder.MaxUp = 0;}
+                                                    else {std::cout << "[Path] Decreased upwards mobility - now " << Pathfinder.MaxUp << "\n";}
+                                                    break;
+                                                case 2:
+                                                    Pathfinder.MaxDown += 1.0;
+                                                    std::cout << "[Path] Increased downwards mobility - now " << Pathfinder.MaxUp << "\n";
+                                                    break;
+                                                case 3:
+                                                    Pathfinder.MaxDown -= 1.0;
+                                                    if (Pathfinder.MaxDown < 0) {Pathfinder.MaxDown = 0;}
+                                                    else {std::cout << "[Path] Decreased downwards mobility - now " << Pathfinder.MaxUp << "\n";}
+                                                    break;
+                                                case 4:
+                                                    Map.SizeIndex++;
+                                                    if (Map.SizeIndex > 14) {Map.SizeIndex = 14;}
+
+                                                    Map.Dims = {720 / Map.CellSizes[Map.SizeIndex], 576 / Map.CellSizes[Map.SizeIndex]};
+                                                    Map.Start = std::make_pair(0, 0);
+                                                    Map.Goal = std::make_pair(Map.Dims.y - 1, Map.Dims.x - 1);
+
+                                                    Map.Grid.clear();
+                                                    for (int i = 0; i < Map.Dims.y; i++) {
+                                                        Map.Grid.emplace_back();
+                                                        for (int j = 0; j < Map.Dims.x; j++) {
+                                                            Map.Grid[i].emplace_back(Map.MinVal);
+                                                        }
+                                                    }
+                                                    Pathfinder.Nodes.clear();
+                                                    std::cout << "[Grid] Grid Cleared; Increased cell size - now " << Map.CellSizes[Map.SizeIndex] << " (" << Map.Dims.x << " x " << Map.Dims.y << ")\n";
+                                                    break;
+                                                case 5:
+                                                    Map.SizeIndex--;
+                                                    if (Map.SizeIndex < 0) {Map.SizeIndex = 0;}
+
+                                                    Map.Dims = {720 / Map.CellSizes[Map.SizeIndex], 576 / Map.CellSizes[Map.SizeIndex]};
+                                                    Map.Start = std::make_pair(0, 0);
+                                                    Map.Goal = std::make_pair(Map.Dims.y - 1, Map.Dims.x - 1);
+
+                                                    Map.Grid.clear();
+                                                    for (int i = 0; i < Map.Dims.y; i++) {
+                                                        Map.Grid.emplace_back();
+                                                        for (int j = 0; j < Map.Dims.x; j++) {
+                                                            Map.Grid[i].emplace_back(Map.MinVal);
+                                                        }
+                                                    }
+                                                    Pathfinder.Nodes.clear();
+                                                    std::cout << "[Grid] Grid Cleared; Decreased cell size - now " << Map.CellSizes[Map.SizeIndex] << " (" << Map.Dims.x << " x " << Map.Dims.y << ")\n";
+                                                    break;
+                                                case 6:
+                                                    Map.MinVal += 1.0;
+                                                    std::cout << "[Grid] Increased minimum cell value - now " << Map.MinVal << "\n"; 
+                                                    break;
+                                                case 7:
+                                                    Map.MinVal -= 1.0;
+                                                    std::cout << "[Grid] Decreased minimum cell value - now " << Map.MinVal << "\n"; 
+                                                    break;
+                                                case 8:
+                                                    Map.MaxVal += 1.0;
+                                                    std::cout << "[Grid] Increased maximum cell value - now " << Map.MinVal << "\n"; 
+                                                    break;
+                                                case 9:
+                                                    Map.MaxVal -= 1.0;
+                                                    std::cout << "[Grid] Decreased maximum cell value - now " << Map.MinVal << "\n"; 
+                                                    break;
+                                                case 10:
+                                                    Tool.Radius++;
+                                                    if (Tool.Radius > Tool.RadiusMax) {Tool.Radius = Tool.RadiusMax;}
+                                                    else {std::cout << "[Tool] Increased radius - now " << Tool.Radius << "\n";}
+                                                    break;
+                                                case 11:
+                                                    Tool.Radius--;
+                                                    if (Tool.Radius < Tool.RadiusMin) {Tool.Radius = Tool.RadiusMin;}
+                                                    else {std::cout << "[Tool] Decreased radius - now " << Tool.Radius << "\n";}
+                                                    break;
+                                                case 12:
+                                                    Tool.Strength += 1.0;
+                                                    if (Tool.Strength > Tool.StrengthMax) {Tool.Strength = Tool.StrengthMax;}
+                                                    else {std::cout << "[Tool] Increased strength - now " << Tool.Strength << "\n";}
+                                                    break;
+                                                case 13:
+                                                    Tool.Strength -= 1.0;
+                                                    if (Tool.Strength < Tool.StrengthMin) {Tool.Strength = Tool.StrengthMin;}
+                                                    else {std::cout << "[Tool] Decreased strength - now " << Tool.Strength << "\n";}
+                                                    break;
+                                            }
+                                            madeChanges = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (map.check(mstate)) {
+                                    switch (drawMode) {
+                                        case 0:
+                                            Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
+                                            break;
+                                        case 1:
+                                            Map.Start = std::make_pair(Map.Pos.y, Map.Pos.x);
+                                            std::cout << "[Grid] Start moved to " << Map.Start.first << ", " << Map.Start.second << "\n";
+                                            break;
+                                        case 2:
+                                            Map.Goal = std::make_pair(Map.Pos.y, Map.Pos.x);
+                                            std::cout << "[Grid] Goal moved to " << Map.Goal.first << ", " << Map.Goal.second << "\n";
+                                            break;
+                                    }
+                                    drawMode = 0;
+                                    madeChanges = true;
+                                }
                                 break;
                             case SDL_BUTTON_RIGHT:
-                                Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
-                                madeChanges = true;
+                                if (map.check(mstate)) {
+                                    Map.Grid = brushGrid(Map.Grid, Map.Pos.y, Map.Pos.x, -Tool.Strength, Tool.Radius, Map.MaxVal, Map.MinVal);
+                                    madeChanges = true;
+                                }
                                 break;
                         }
                         break;
@@ -315,25 +405,31 @@ int main(int argc, char* args[]) {
             Window.fillRectangle(240, -307, 384,  10, PresetColors[COLOR_LIGHT_GRAY]);
 
             // Button outlines
-            Window.fillRectangle(-556, -295, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-556, -295,   5, 45, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-556, -335, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-352, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-632, -295, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-632, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-632, -335, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-428, -295,   5, 45, PresetColors[COLOR_WHITE]);
 
-            Window.fillRectangle(-310, -295, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-310, -295,   5, 45, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-310, -335, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-106, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-415, -295, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-415, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-415, -335, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-211, -295,   5, 45, PresetColors[COLOR_WHITE]);
 
-            Window.fillRectangle(-64, -295, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-64, -295,   5, 45, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(-64, -335, 209,  5, PresetColors[COLOR_WHITE]);
-            Window.fillRectangle(140, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-198, -295, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-198, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(-198, -335, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(   6, -295,   5, 45, PresetColors[COLOR_WHITE]);
+
+            Window.fillRectangle( 19, -295, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle( 19, -295,   5, 45, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle( 19, -335, 209,  5, PresetColors[COLOR_WHITE]);
+            Window.fillRectangle(223, -295,   5, 45, PresetColors[COLOR_WHITE]);
 
             // Pathfinding text
-            Window.renderText(font, u"Generate Path", {-453, -318}, 0, PresetColors[COLOR_WHITE]);
-            Window.renderText(font, u"Place Start", {-207, -318}, 0, PresetColors[COLOR_WHITE]);
-            Window.renderText(font, u"Place Goal", {40, -318}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Generate Path", {-529, -318}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Place Start", {-312, -318}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Place Goal", {-95, -318}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, u"Reset Grid", {123, -318}, 0, PresetColors[COLOR_WHITE]);
 
             // Path Settings text
             Window.renderText(font, u"Path Settings:", {373, 279}, 0, PresetColors[COLOR_WHITE]);
@@ -344,7 +440,7 @@ int main(int argc, char* args[]) {
 
             // Grid Settings text
             Window.renderText(font, u"Grid Settings:", {373, 95}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Cell Size: " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Map.CellSize, 3, false, false));
+            dummyString = u"Cell Size: " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Map.CellSizes[Map.SizeIndex], 3, false, false));
             Window.renderText(font, dummyString.c_str(), {373, 48}, 0, PresetColors[COLOR_WHITE]);
             dummyString = u"Min:  " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Map.MinVal, 4, 3, false));
             Window.renderText(font, dummyString.c_str(), {373, -20}, 0, PresetColors[COLOR_WHITE]);
@@ -381,15 +477,15 @@ int main(int argc, char* args[]) {
             for (unsigned long int i = 0; i < Map.Grid.size(); i++) {
                 for (unsigned long int j = 0; j < Map.Grid.at(i).size(); j++) {
                     const unsigned char shade = 255 - btils::map<double, unsigned char>(Map.Grid.at(i).at(j), Map.MinVal, Map.MaxVal, 0, 255);
-                    Window.fillRectangle(-Window.getW_2() + j * Map.CellSize + Map.Offset.x, Window.getH_2() - i * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, {shade, shade, shade, 255});
+                    Window.fillRectangle(-Window.getW_2() + j * Map.CellSizes[Map.SizeIndex] + Map.Offset.x, Window.getH_2() - i * Map.CellSizes[Map.SizeIndex] - Map.Offset.y, Map.CellSizes[Map.SizeIndex], Map.CellSizes[Map.SizeIndex], {shade, shade, shade, 255});
                 }
             }
 
             // Path
-            Window.fillRectangle(-Window.getW_2() + Map.Start.second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.Start.first * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_TEAL]);
-            Window.fillRectangle(-Window.getW_2() +  Map.Goal.second * Map.CellSize + Map.Offset.x, Window.getH_2() -  Map.Goal.first * Map.CellSize - Map.Offset.y, Map.CellSize, Map.CellSize, PresetColors[COLOR_MAROON]);
+            Window.fillRectangle(-Window.getW_2() + Map.Start.second * Map.CellSizes[Map.SizeIndex] + Map.Offset.x, Window.getH_2() - Map.Start.first * Map.CellSizes[Map.SizeIndex] - Map.Offset.y, Map.CellSizes[Map.SizeIndex], Map.CellSizes[Map.SizeIndex], PresetColors[COLOR_TEAL]);
+            Window.fillRectangle(-Window.getW_2() +  Map.Goal.second * Map.CellSizes[Map.SizeIndex] + Map.Offset.x, Window.getH_2() -  Map.Goal.first * Map.CellSizes[Map.SizeIndex] - Map.Offset.y, Map.CellSizes[Map.SizeIndex], Map.CellSizes[Map.SizeIndex], PresetColors[COLOR_MAROON]);
             for (unsigned long int i = 1; i < Pathfinder.Nodes.size(); i++) {
-                Window.drawLine(-Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i - 1).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i - 1).first  * Map.CellSize - Map.Offset.y, -Window.getW_2() + Map.CellSize / 2 + Pathfinder.Nodes.at(i).second * Map.CellSize + Map.Offset.x, Window.getH_2() - Map.CellSize / 2 - Pathfinder.Nodes.at(i).first * Map.CellSize - Map.Offset.y, PresetColors[COLOR_LIME]);
+                Window.drawLine(-Window.getW_2() + Map.CellSizes[Map.SizeIndex] / 2 + Pathfinder.Nodes.at(i - 1).second * Map.CellSizes[Map.SizeIndex] + Map.Offset.x, Window.getH_2() - Map.CellSizes[Map.SizeIndex] / 2 - Pathfinder.Nodes.at(i - 1).first  * Map.CellSizes[Map.SizeIndex] - Map.Offset.y, -Window.getW_2() + Map.CellSizes[Map.SizeIndex] / 2 + Pathfinder.Nodes.at(i).second * Map.CellSizes[Map.SizeIndex] + Map.Offset.x, Window.getH_2() - Map.CellSizes[Map.SizeIndex] / 2 - Pathfinder.Nodes.at(i).first * Map.CellSizes[Map.SizeIndex] - Map.Offset.y, PresetColors[COLOR_LIME]);
             }
 
             Window.show();
