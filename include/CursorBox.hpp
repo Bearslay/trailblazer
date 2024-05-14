@@ -18,13 +18,13 @@ struct MouseState {
 
 class CursorBox {
     private:
-        SDL_Rect BoxC = {0, 0, 0, 0};
-        SDL_Rect BoxR = {0, 0, 0, 0};
+        SDL_Rect Box = {0, 0, 0, 0};
 
     public:
-        CursorBox(const SDL_Rect &box, const int &dimx, const int &dimy) {
-            BoxC = box;
-            BoxR = {box.x - dimx / 2, box.y - dimy / 2, box.w, box.h};
+        CursorBox(const SDL_Rect &box) : Box(box) {}
+
+        bool check(const MouseState &mstate) {
+            return mstate.PosR.x >= Box.x && mstate.PosR.y >= Box.y && mstate.PosR.x <= Box.x + Box.w && mstate.PosR.y <= Box.y + Box.h;
         }
 };
 
