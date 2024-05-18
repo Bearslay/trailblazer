@@ -125,7 +125,6 @@ int main(int argc, char* args[]) {
     };
 
     int drawMode = 0;
-    std::u16string dummyString;
 
     bool running = true, madeChanges = true;
     while (running) {
@@ -433,26 +432,19 @@ int main(int argc, char* args[]) {
 
             // Path Settings text
             Window.renderText(font, u"Path Settings:", {373, 279}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Up:   " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Pathfinder.MaxUp, 4, 3, false));
-            Window.renderText(font, dummyString.c_str(), {373, 232}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Down: " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Pathfinder.MaxDown, 4, 3, false));
-            Window.renderText(font, dummyString.c_str(), {373, 165}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, (u"Up:   " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Pathfinder.MaxUp, 4, 3, false))).c_str(), {373, 232}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, (u"Down: " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Pathfinder.MaxDown, 4, 3, false))).c_str(), {373, 165}, 0, PresetColors[COLOR_WHITE]);
 
             // Grid Settings text
             Window.renderText(font, u"Grid Settings:", {373, 95}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Cell Size: " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Map.CellSizes[Map.SizeIndex], 3, false, false));
-            Window.renderText(font, dummyString.c_str(), {373, 48}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Min:  " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Map.MinVal, 4, 3, false));
-            Window.renderText(font, dummyString.c_str(), {373, -20}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Max:  " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Map.MaxVal, 4, 3, false));
-            Window.renderText(font, dummyString.c_str(), {373, -87}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, (u"Cell Size: " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Map.CellSizes[Map.SizeIndex], 3, false, false))).c_str(), {373, 48}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, (u"Min:  " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Map.MinVal, 4, 3, false))).c_str(), {373, -20}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, (u"Max:  " + btils::to_u16string<std::string>(btils::tstr_AddZeros<int>(Map.MaxVal, 4, 3, false))).c_str(), {373, -87}, 0, PresetColors[COLOR_WHITE]);
 
             // Tool Settings text
             Window.renderText(font, u"Tool Settings:", {373, -157}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Size:      " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Tool.Radius, 3, false, false));
-            Window.renderText(font, dummyString.c_str(), {373, -204}, 0, PresetColors[COLOR_WHITE]);
-            dummyString = u"Strength:  " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Tool.Strength, 3, false, false));
-            Window.renderText(font, dummyString.c_str(), {373, -271}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, (u"Size:      " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Tool.Radius, 3, false, false))).c_str(), {373, -204}, 0, PresetColors[COLOR_WHITE]);
+            Window.renderText(font, (u"Strength:  " + btils::to_u16string<std::string>(btils::tstr_Length<int>(Tool.Strength, 3, false, false))).c_str(), {373, -271}, 0, PresetColors[COLOR_WHITE]);
 
             // Increment/Decrement buttons
             arrowButton.setAngle(0);
